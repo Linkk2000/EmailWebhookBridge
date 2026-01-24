@@ -11,7 +11,7 @@ public class ScaWebhookPayload {
     private String scaApplicationName;
 
     @JsonProperty("sca_branch")
-    private String scaBranch; // Mapped from application version
+    private String scaBranch; // 映射自应用版本
 
     @JsonProperty("sca_component_count")
     private Integer scaComponentCount;

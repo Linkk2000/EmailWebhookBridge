@@ -19,10 +19,18 @@ class WebhookEndToEndTest {
 
     private static final int SMTP_PORT = 2525;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private work.chenhan.repository.ScaProcessRecordRepository processRecordRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private work.chenhan.repository.WebhookPushLogRepository pushLogRepository;
+
     @Test
     void testEmailToWebhookFlow() throws Exception {
-        // Clear queue before start
+        // Clear queue and DB before start
         TestWebhookController.receivedPayloads.clear();
+        processRecordRepository.deleteAll();
+        pushLogRepository.deleteAll();
 
         // Send Email
         try (Socket socket = new Socket("localhost", SMTP_PORT);
@@ -43,7 +51,7 @@ class WebhookEndToEndTest {
             writer.println("Subject: SCA Report");
             writer.println("");
             writer.println("Link Check");
-            writer.println("29477，您好：");
+            writer.println("Tangerine，您好：");
             writer.println("【GitLab_V4】风险检测已完成，风险结果如下：");
             writer.println("项目名称：测试用，应用名称：管理系统企业前端，应用版本：master");
             writer.println("共检测出564个组件，其中严重10个，高危19个，中危13个，低危2个，无漏洞520个。");
@@ -73,6 +81,18 @@ class WebhookEndToEndTest {
         assertEquals(9, payload.getScaLicenseCount());
         assertEquals("2026-01-22 14:35:45", payload.getScaStartTime());
         assertEquals("2026-01-22 14:35:57", payload.getScaEndTime());
+
+        // Assertions - Database
+        assertEquals(1, processRecordRepository.count(), "Should have 1 process record");
+        assertEquals(1, pushLogRepository.count(), "Should have 1 push log");
+
+        work.chenhan.entity.ScaProcessRecord record = processRecordRepository.findAll().get(0);
+        assertTrue(record.getIsAllowed(), "Decision should be allowed by default");
+        assertEquals("测试用", record.getScaProjectName());
+
+        work.chenhan.entity.WebhookPushLog log = pushLogRepository.findAll().get(0);
+        assertEquals("SUCCESS", log.getPushStatus(), "Push status should be SUCCESS");
+        assertEquals("测试用", log.getScaProjectName());
     }
 
     private void readExpect(BufferedReader reader, String code) throws Exception {

@@ -14,9 +14,9 @@ class ScaParsingTest {
         // Sample text provided by user
         String emailBody = """
                 Link Check
-                29477，您好：
+                Tangerine，您好：
                 【GitLab_V4】风险检测已完成，风险结果如下：
-                项目名称：测试用，应用名称：现金管理系统企业前端，应用版本：master
+                项目名称：测试用，应用名称：管理系统企业前端，应用版本：master
                 共检测出564个组件，其中严重10个，高危19个，中危13个，低危2个，无漏洞520个。
                 共检测出48个漏洞，其中严重7个，高危20个，中危18个，低危3个。
                 共检测出9个许可证，其中高风险0个，中风险0个，低风险9个。
@@ -27,13 +27,14 @@ class ScaParsingTest {
                                 """;
 
         // Mock dependencies to create the processor (we only test the pure method)
-        ScaWebhookProcessor processor = new ScaWebhookProcessor("http://dummy", Mockito.mock(RestClient.Builder.class));
+        ScaWebhookProcessor processor = new ScaWebhookProcessor("http://dummy", Mockito.mock(RestClient.Builder.class),
+                null, null, null);
 
         ScaReport report = processor.parseReport(emailBody);
 
         assertNotNull(report, "Report should not be null");
         assertEquals("测试用", report.getProjectName());
-        assertEquals("现金管理系统企业前端", report.getApplicationName());
+        assertEquals("管理系统企业前端", report.getApplicationName());
         assertEquals("master", report.getApplicationVersion());
         assertEquals(564, report.getComponentCount());
         assertEquals(48, report.getVulnerabilityCount());

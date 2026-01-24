@@ -32,8 +32,11 @@ public class ScaWebhookProcessor implements EmailProcessor {
 
     private final String webhookUrl;
     private final RestClient restClient;
+    private final work.chenhan.service.ScaEnrichmentService enrichmentService;
+    private final work.chenhan.repository.ScaProcessRecordRepository processRecordRepository;
+    private final work.chenhan.repository.WebhookPushLogRepository pushLogRepository;
 
-    // Regex Patterns
+    // 正则表达式模式
     // 项目名称：测试用，应用名称：管理系统企业前端，应用版本：master
     private static final Pattern INFO_PATTERN = Pattern.compile("项目名称：(.*?)，应用名称：(.*?)，应用版本：(.*)");
     // 共检测出564个组件
@@ -47,9 +50,16 @@ public class ScaWebhookProcessor implements EmailProcessor {
     // 检测完成时间：2026-01-22 14:35:57
     private static final Pattern END_TIME_PATTERN = Pattern.compile("检测完成时间：(.*)");
 
-    public ScaWebhookProcessor(@Value("${sca.webhook.url}") String webhookUrl, RestClient.Builder restClientBuilder) {
+    public ScaWebhookProcessor(@Value("${sca.webhook.url}") String webhookUrl,
+            RestClient.Builder restClientBuilder,
+            work.chenhan.service.ScaEnrichmentService enrichmentService,
+            work.chenhan.repository.ScaProcessRecordRepository processRecordRepository,
+            work.chenhan.repository.WebhookPushLogRepository pushLogRepository) {
         this.webhookUrl = webhookUrl;
         this.restClient = restClientBuilder.build();
+        this.enrichmentService = enrichmentService;
+        this.processRecordRepository = processRecordRepository;
+        this.pushLogRepository = pushLogRepository;
     }
 
     @Override
@@ -62,7 +72,19 @@ public class ScaWebhookProcessor implements EmailProcessor {
             if (report != null) {
                 log.info("Parsed SCA Report: {}", report);
                 ScaWebhookPayload payload = mapToPayload(report);
-                sendWebhook(payload);
+
+                // 1. Enrichment and Decision
+                boolean allowed = enrichmentService.enrich(payload);
+
+                // 2. Record Decision
+                saveProcessRecord(payload, allowed);
+
+                if (allowed) {
+                    // 3. Send Webhook and Log result
+                    sendWebhook(payload);
+                } else {
+                    log.info("Payload blocked by enrichment service: {}", payload.getScaProjectName());
+                }
             } else {
                 log.warn("Failed to parse SCA report from email body.");
             }
@@ -82,8 +104,8 @@ public class ScaWebhookProcessor implements EmailProcessor {
         payload.setScaStartTime(report.getStartTime());
         payload.setScaEndTime(report.getEndTime());
 
-        // These fields are currently not extractable from the provided sample
-        // Leaving them null or setting defaults if user provides extraction logic
+        // 这些字段目前无法从提供的样本中提取
+        // 如果用户提供提取逻辑，可以设置默认值或保留为 null
         payload.setScaRepoAddress(null);
         payload.setScaTaskId(null);
         payload.setScaAppId(null);
@@ -92,6 +114,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
     }
 
     private void sendWebhook(ScaWebhookPayload payload) {
+        String pushStatus = "UNKNOWN";
         try {
             restClient.post()
                     .uri(webhookUrl)
@@ -99,8 +122,48 @@ public class ScaWebhookProcessor implements EmailProcessor {
                     .retrieve()
                     .toBodilessEntity();
             log.info("Successfully sent webhook to {}", webhookUrl);
+            pushStatus = "SUCCESS";
         } catch (Exception e) {
             log.error("Failed to send webhook to {}", webhookUrl, e);
+            pushStatus = "FAILED: " + e.getMessage();
+            if (pushStatus.length() > 255)
+                pushStatus = pushStatus.substring(0, 255);
+        } finally {
+            savePushLog(payload, pushStatus);
+        }
+    }
+
+    private void saveProcessRecord(ScaWebhookPayload payload, boolean allowed) {
+        try {
+            work.chenhan.entity.ScaProcessRecord record = new work.chenhan.entity.ScaProcessRecord();
+            record.setScaProjectName(payload.getScaProjectName());
+            record.setScaApplicationName(payload.getScaApplicationName());
+            record.setScaBranch(payload.getScaBranch());
+            record.setScaTaskId(payload.getScaTaskId());
+            record.setScaAppId(payload.getScaAppId());
+            record.setScaStartTime(payload.getScaStartTime());
+            record.setScaEndTime(payload.getScaEndTime());
+            record.setIsAllowed(allowed);
+            processRecordRepository.save(record);
+        } catch (Exception e) {
+            log.error("Failed to save process record", e);
+        }
+    }
+
+    private void savePushLog(ScaWebhookPayload payload, String status) {
+        try {
+            work.chenhan.entity.WebhookPushLog log = new work.chenhan.entity.WebhookPushLog();
+            log.setScaProjectName(payload.getScaProjectName());
+            log.setScaApplicationName(payload.getScaApplicationName());
+            log.setScaBranch(payload.getScaBranch());
+            log.setScaTaskId(payload.getScaTaskId());
+            log.setScaAppId(payload.getScaAppId());
+            log.setScaStartTime(payload.getScaStartTime());
+            log.setScaEndTime(payload.getScaEndTime());
+            log.setPushStatus(status);
+            pushLogRepository.save(log);
+        } catch (Exception e) {
+            log.error("Failed to save push log", e);
         }
     }
 
@@ -152,12 +215,11 @@ public class ScaWebhookProcessor implements EmailProcessor {
 
     private String getTextFromMessage(jakarta.mail.Part part) throws MessagingException, IOException {
         if (part.isMimeType("text/plain")) {
-            // Manually read input stream to avoid DataHandler conflicts
+            // 手动读取输入流以避免 DataHandler 冲突
             try (java.io.InputStream is = part.getInputStream()) {
                 return new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-                // Note: StandardCharsets.UTF_8 is safe guess if charset param missing,
-                // essentially we should parse Content-Type header for charset but for this
-                // specific task KISS.
+                // 注意：如果缺少字符集参数，UTF_8 是安全的猜测。
+                // 本质上我们应该解析 Content-Type 头来获取字符集，但对于此特定任务遵循 KISS 原则。
             }
         } else if (part.isMimeType("multipart/*")) {
             try {
@@ -179,6 +241,9 @@ public class ScaWebhookProcessor implements EmailProcessor {
                 return "";
             }
         } else if (part.isMimeType("text/html")) {
+            // 目前将 HTML 视为字符串，但如果正则失败可能需要清理标签。
+            // 鉴于正则是简单的文本匹配，如果格式严格匹配，它们在 HTML 源码上也可能工作。
+            // 但如果可用，更简单的方法是优先使用纯文本多分部。
             try (java.io.InputStream is = part.getInputStream()) {
                 return new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             }
