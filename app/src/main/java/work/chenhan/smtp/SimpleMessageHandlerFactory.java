@@ -44,7 +44,7 @@ public class SimpleMessageHandlerFactory implements MessageHandlerFactory {
             @Override
             public void data(InputStream data) throws IOException {
                 byte[] payload = readAllBytes(data);
-                log.info("SMTP message received. from={}, recipients={}, size={} bytes", from, recipients,
+                log.info("收到 SMTP 邮件。来自={}, 收件人={}, 大小={} 字节", from, recipients,
                         payload.length);
 
                 work.chenhan.dto.EmailContent content = new work.chenhan.dto.EmailContent(
@@ -53,7 +53,7 @@ public class SimpleMessageHandlerFactory implements MessageHandlerFactory {
                         payload,
                         java.time.LocalDateTime.now());
 
-                // Asynchronous processing according to requirements
+                // 根据需求进行异步处理
                 emailProcessor.process(content);
             }
 

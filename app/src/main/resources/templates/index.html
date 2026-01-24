@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>EmailWebhookBridge Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { margin-top: 20px; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-5px); }
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/">EmailWebhookBridge</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item"><a class="nav-link" href="/webhooks">Webhook 管理</a></li>
+                <li class="nav-item"><a class="nav-link" href="/logs/process">放行记录</a></li>
+                <li class="nav-item"><a class="nav-link" href="/logs/push">推送日志</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="p-5 mb-4 bg-light rounded-3 shadow-sm">
+        <div class="container-fluid py-5">
+            <h1 class="display-5 fw-bold">控制台 Dashboard</h1>
+            <p class="col-md-8 fs-4">欢迎使用 EmailWebhookBridge 管理系统。您可以在此处配置 Webhook 转发规则，并审计所有的邮件处理与推送记录。</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Webhook 配置</h5>
+                    <p class="card-text">添加或移除接收转发的目标 Webhook 地址。</p>
+                    <a href="/webhooks" class="btn btn-primary">管理 Webhooks</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">处理记录审计</h5>
+                    <p class="card-text">查看所有接收到的 SCA 邮件及其处理/放行结果。</p>
+                    <a href="/logs/process" class="btn btn-info text-white">查看放行记录</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">推送日志审计</h5>
+                    <p class="card-text">追踪每一次 Webhook 推送的 HTTP 状态与响应。</p>
+                    <a href="/logs/push" class="btn btn-secondary">查看推送日志</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -8,8 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 @SpringBootTest(classes = Main.class, webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class SmtpServerIntegrationTest {
 
-    // The SMTP server in app is configured to listen on port 2525 by default
-    // or through properties. Here we assume default 2525.
+
     private static final int SMTP_PORT = 2525;
 
     @Test

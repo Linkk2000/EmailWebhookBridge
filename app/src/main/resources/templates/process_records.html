@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Process Records - EmailWebhookBridge</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">EmailWebhookBridge</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="/webhooks">Webhook 管理</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/logs/process">放行记录</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/logs/push">推送日志</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        <h2>邮件处理与放行记录</h2>
+
+        <div class="card mb-3 mt-3">
+            <div class="card-body">
+                <form action="/logs/process" method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" name="projectName" placeholder="项目名称"
+                            th:value="${paramProjectName}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" name="applicationName" placeholder="应用名称"
+                            th:value="${paramApplicationName}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" name="taskId" placeholder="任务ID"
+                            th:value="${paramTaskId}">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="isAllowed">
+                            <option value="" th:selected="${paramIsAllowed == null}">所有状态</option>
+                            <option value="true" th:selected="${paramIsAllowed == true}">放行</option>
+                            <option value="false" th:selected="${paramIsAllowed == false}">拦截</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-primary w-100">筛选</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <table class="table table-striped table-hover table-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>项目名称</th>
+                    <th>应用名称</th>
+                    <th>SCA任务ID</th>
+                    <th>分支/版本</th>
+                    <th>检测时间</th>
+                    <th>结果</th>
+                    <th>接收时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="record : ${records}">
+                    <td th:text="${record.id}">1</td>
+                    <td th:text="${record.scaProjectName}">Proj</td>
+                    <td th:text="${record.scaApplicationName}">App</td>
+                    <td th:text="${record.scaTaskId}">Task</td>
+                    <td th:text="${record.scaBranch}">Master</td>
+                    <td th:text="${record.scaStartTime}">Start</td>
+                    <td>
+                        <span th:if="${record.isAllowed}" class="badge bg-success">放行</span>
+                        <span th:unless="${record.isAllowed}" class="badge bg-warning text-dark">拦截</span>
+                    </td>
+                    <td th:text="${#temporals.format(record.receivedAt, 'yyyy-MM-dd HH:mm:ss')}">Time</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(records)}">
+                    <td colspan="8" class="text-center">暂无处理记录。</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+
+</html>

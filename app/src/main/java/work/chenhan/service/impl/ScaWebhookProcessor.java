@@ -8,7 +8,7 @@ import jakarta.mail.internet.MimeMultipart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -25,16 +25,16 @@ import java.util.regex.Pattern;
 
 @Service
 @Primary
-@ConditionalOnProperty(name = "sca.webhook.url")
 public class ScaWebhookProcessor implements EmailProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(ScaWebhookProcessor.class);
 
-    private final String webhookUrl;
+    private final String defaultWebhookUrl;
     private final RestClient restClient;
     private final work.chenhan.service.ScaEnrichmentService enrichmentService;
     private final work.chenhan.repository.ScaProcessRecordRepository processRecordRepository;
     private final work.chenhan.repository.WebhookPushLogRepository pushLogRepository;
+    private final work.chenhan.repository.WebhookConfigRepository webhookConfigRepository;
 
     // 正则表达式模式
     // 项目名称：测试用，应用名称：管理系统企业前端，应用版本：master
@@ -50,46 +50,59 @@ public class ScaWebhookProcessor implements EmailProcessor {
     // 检测完成时间：2026-01-22 14:35:57
     private static final Pattern END_TIME_PATTERN = Pattern.compile("检测完成时间：(.*)");
 
-    public ScaWebhookProcessor(@Value("${sca.webhook.url}") String webhookUrl,
+    public ScaWebhookProcessor(@Value("${sca.webhook.url:#{null}}") String defaultWebhookUrl,
             RestClient.Builder restClientBuilder,
             work.chenhan.service.ScaEnrichmentService enrichmentService,
             work.chenhan.repository.ScaProcessRecordRepository processRecordRepository,
-            work.chenhan.repository.WebhookPushLogRepository pushLogRepository) {
-        this.webhookUrl = webhookUrl;
+            work.chenhan.repository.WebhookPushLogRepository pushLogRepository,
+            work.chenhan.repository.WebhookConfigRepository webhookConfigRepository) {
+        this.defaultWebhookUrl = defaultWebhookUrl;
         this.restClient = restClientBuilder.build();
         this.enrichmentService = enrichmentService;
         this.processRecordRepository = processRecordRepository;
         this.pushLogRepository = pushLogRepository;
+        this.webhookConfigRepository = webhookConfigRepository;
     }
 
     @Override
     public void process(EmailContent content) {
-        log.info("Processing email from {}", content.getFrom());
+        log.info("正在处理来自 {} 的邮件", content.getFrom());
         try {
             String bodyText = extractBody(content.getRawData());
             ScaReport report = parseReport(bodyText);
 
             if (report != null) {
-                log.info("Parsed SCA Report: {}", report);
+                log.info("已解析 SCA 报告: {}", report);
                 ScaWebhookPayload payload = mapToPayload(report);
 
-                // 1. Enrichment and Decision
+                // 1. 信息补全与决策
                 boolean allowed = enrichmentService.enrich(payload);
 
-                // 2. Record Decision
+                // 2. 记录决策结果
                 saveProcessRecord(payload, allowed);
 
                 if (allowed) {
-                    // 3. Send Webhook and Log result
-                    sendWebhook(payload);
+                    // 3. 发送 Webhook 并记录日志
+                    // 广播给所有已启用的 Webhook
+                    java.util.List<work.chenhan.entity.WebhookConfig> configs = webhookConfigRepository
+                            .findByEnabledTrue();
+
+                    if (configs.isEmpty() && defaultWebhookUrl != null && !defaultWebhookUrl.isBlank()) {
+                        // 如果数据库为空，回退使用属性文件中定义的 URL
+                        sendWebhook(payload, defaultWebhookUrl);
+                    } else {
+                        for (work.chenhan.entity.WebhookConfig config : configs) {
+                            sendWebhook(payload, config.getUrl());
+                        }
+                    }
                 } else {
-                    log.info("Payload blocked by enrichment service: {}", payload.getScaProjectName());
+                    log.info("Payload 被增强服务拦截: {}", payload.getScaProjectName());
                 }
             } else {
-                log.warn("Failed to parse SCA report from email body.");
+                log.warn("未能从邮件正文解析出 SCA 报告。");
             }
         } catch (Exception e) {
-            log.error("Error processing email for webhook", e);
+            log.error("处理 Webhook 邮件时出错", e);
         }
     }
 
@@ -113,36 +126,37 @@ public class ScaWebhookProcessor implements EmailProcessor {
         return payload;
     }
 
-    private void sendWebhook(ScaWebhookPayload payload) {
+    private void sendWebhook(ScaWebhookPayload payload, String targetUrl) {
         String status = "FAILED";
         Integer statusCode = null;
         String responseBody = null;
 
         try {
-            org.springframework.http.ResponseEntity<Void> response = restClient.post()
-                    .uri(webhookUrl)
+            org.springframework.http.ResponseEntity<String> response = restClient.post()
+                    .uri(targetUrl)
                     .body(payload)
                     .retrieve()
-                    .toBodilessEntity();
+                    .toEntity(String.class);
 
             statusCode = response.getStatusCode().value();
             status = response.getStatusCode().is2xxSuccessful() ? "SUCCESS" : "FAILED";
-            log.info("Successfully sent webhook to {}. Status: {}", webhookUrl, statusCode);
+            responseBody = response.getBody();
+            log.info("成功发送 Webhook 至 {}。状态码: {}", targetUrl, statusCode);
         } catch (org.springframework.web.client.RestClientResponseException e) {
             statusCode = e.getStatusCode().value();
             responseBody = e.getResponseBodyAsString();
             status = "FAILED";
-            log.error("Webhook failed with HTTP error: {} {}", statusCode, e.getStatusText());
+            log.error("Webhook 发送失败，HTTP 错误: {} {}", statusCode, e.getStatusText());
         } catch (Exception e) {
             responseBody = e.getMessage();
             status = "FAILED";
-            log.error("Failed to send webhook to {}", webhookUrl, e);
+            log.error("发送 Webhook 至 {} 失败", targetUrl, e);
         } finally {
-            // Truncate response body if too long
+            // 如果响应体过长（>2048字符），截断以避免数据库错误
             if (responseBody != null && responseBody.length() > 2048) {
                 responseBody = responseBody.substring(0, 2048);
             }
-            savePushLog(payload, status, statusCode, responseBody, webhookUrl);
+            savePushLog(payload, status, statusCode, responseBody, targetUrl);
         }
     }
 
@@ -159,7 +173,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
             record.setIsAllowed(allowed);
             processRecordRepository.save(record);
         } catch (Exception e) {
-            log.error("Failed to save process record", e);
+            log.error("保存处理记录失败", e);
         }
     }
 
@@ -175,7 +189,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
             log.setScaStartTime(payload.getScaStartTime());
             log.setScaEndTime(payload.getScaEndTime());
 
-            // New Fields
+            // 新增字段
             log.setStatus(status);
             log.setHttpStatusCode(statusCode);
             log.setResponseBody(responseBody);
@@ -183,7 +197,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
 
             pushLogRepository.save(log);
         } catch (Exception e) {
-            log.error("Failed to save push log", e);
+            log.error("保存推送日志失败", e);
         }
     }
 
@@ -253,11 +267,11 @@ public class ScaWebhookProcessor implements EmailProcessor {
                     }
                     return result.toString();
                 } else {
-                    log.warn("Multipart content is not instance of MimeMultipart: {}", content.getClass());
+                    log.warn("多部分内容不是 MimeMultipart 的实例: {}", content.getClass());
                     return content.toString();
                 }
             } catch (Exception e) {
-                log.error("Failed to parse multipart content", e);
+                log.error("解析多部分内容失败", e);
                 return "";
             }
         } else if (part.isMimeType("text/html")) {

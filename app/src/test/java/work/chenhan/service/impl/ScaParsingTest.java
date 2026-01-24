@@ -28,7 +28,7 @@ class ScaParsingTest {
 
         // Mock dependencies to create the processor (we only test the pure method)
         ScaWebhookProcessor processor = new ScaWebhookProcessor("http://dummy", Mockito.mock(RestClient.Builder.class),
-                null, null, null);
+                null, null, null, null);
 
         ScaReport report = processor.parseReport(emailBody);
 

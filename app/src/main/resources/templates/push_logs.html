@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Push Logs - EmailWebhookBridge</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .response-cell {
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .response-cell:hover {
+            white-space: normal;
+            word-break: break-all;
+            position: absolute;
+            background: #fff;
+            border: 1px solid #ccc;
+            z-index: 10;
+            padding: 5px;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">EmailWebhookBridge</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="/webhooks">Webhook 管理</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/logs/process">放行记录</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/logs/push">推送日志</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        <h2>Webhook 推送日志</h2>
+
+        <div class="card mb-3 mt-3">
+            <div class="card-body">
+                <form action="/logs/push" method="get" class="row g-3">
+                    <div class="col-md-2">
+                        <input type="text" class="form-control" name="projectName" placeholder="项目名称"
+                            th:value="${paramProjectName}">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control" name="applicationName" placeholder="应用名称"
+                            th:value="${paramApplicationName}">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control" name="taskId" placeholder="任务ID"
+                            th:value="${paramTaskId}">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control" name="webhookUrl" placeholder="Webhook URL"
+                            th:value="${paramWebhookUrl}">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="status">
+                            <option value="" th:selected="${paramStatus == null}">所有状态</option>
+                            <option value="SUCCESS" th:selected="${paramStatus == 'SUCCESS'}">成功</option>
+                            <option value="FAILED" th:selected="${paramStatus == 'FAILED'}">失败</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">筛选</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <table class="table table-striped table-hover table-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>项目名称</th>
+                    <th>应用名称</th>
+                    <th>状态</th>
+                    <th>HTTP码</th>
+                    <th>目标 URL</th>
+                    <th>响应体/错误</th>
+                    <th>推送时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="log : ${logs}">
+                    <td th:text="${log.id}">1</td>
+                    <td th:text="${log.scaProjectName}">Proj</td>
+                    <td th:text="${log.scaApplicationName}">App</td>
+                    <td>
+                        <span th:if="${log.status == 'SUCCESS'}" class="badge bg-success">成功</span>
+                        <span th:unless="${log.status == 'SUCCESS'}" class="badge bg-danger">失败</span>
+                    </td>
+                    <td th:text="${log.httpStatusCode} ?: '-'">200</td>
+                    <td th:text="${log.webhookUrl}"
+                        style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">http://...</td>
+                    <td>
+                        <div class="response-cell" th:text="${log.responseBody}" title="Hover to view full">Error...
+                        </div>
+                    </td>
+                    <td th:text="${#temporals.format(log.pushedAt, 'yyyy-MM-dd HH:mm:ss')}">Time</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(logs)}">
+                    <td colspan="8" class="text-center">暂无推送记录。</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+
+</html>
