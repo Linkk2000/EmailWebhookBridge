@@ -1,0 +1,34 @@
+# 生产环境配置
+# 默认使用 H2 文件数据库以确保开箱即用。
+# 如需切换为 MySQL，请取消下方 MySQL 区域的注释并配置相关参数。
+
+spring:
+  datasource:
+    # 默认 H2 配置
+    url: jdbc:h2:file:./data/scadb_prod
+    driverClassName: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  h2:
+    console:
+      enabled: false
+
+# --- MySQL 配置模板 (取消注释以启用) ---
+# spring:
+#   datasource:
+#     url: jdbc:mysql://localhost:3306/email_bridge?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+#     username: root
+#     password: your_password
+#     driver-class-name: com.mysql.cj.jdbc.Driver
+#   jpa:
+#     database-platform: org.hibernate.dialect.MySQLDialect
+
+
+# 覆盖 SMTP 端口等可选配置
+smtp:
+  port: 2525
