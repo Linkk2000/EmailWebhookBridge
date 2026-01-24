@@ -68,7 +68,9 @@ if json_data.get('scaProjectName') == 'CONNECTION_TEST':
 2.  **启动后端**：
     运行 `app` 模块下的 `Main.java`。
 3.  **访问管理页面**：
-    浏览器打开 `http://localhost:8080`。默认会自动进入 Dashboard。
+    浏览器打开 `http://localhost:8080`。系统已启用安全认证，默认凭据为：
+    *   **用户名**：`admin`
+    *   **密码**：`admin@2026`
 
 ### 测试工具
 
@@ -86,6 +88,7 @@ if json_data.get('scaProjectName') == 'CONNECTION_TEST':
     *   **持久化**：
         *   `./data`：存放 H2 数据库文件。
         *   `./logs`：存放应用运行日志（`spring.log`）。
+    *   **安全认证**：默认用户名 `admin`，密码 `admin@2026`。可通过 `SPRING_SECURITY_USER_NAME` 和 `SPRING_SECURITY_USER_PASSWORD` 环境变量修改。
     *   **外部数据库**：在 `docker-compose.yml` 的 `environment` 中指定 `SPRING_DATASOURCE_URL` 等变量。
 
 2.  **二进制部署**
