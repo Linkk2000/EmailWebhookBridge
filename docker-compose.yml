@@ -13,6 +13,10 @@ services:
       # 指定生效环境：dev (H2) / prod (MySQL)
       - SPRING_PROFILES_ACTIVE=dev
       
+      # 登录凭据（生产环境请务必修改）
+      - SPRING_SECURITY_USER_NAME=admin
+      - SPRING_SECURITY_USER_PASSWORD=admin@2026
+      
       # 日志配置：将日志持久化到挂载目录
       - LOGGING_FILE_NAME=/app/logs/spring.log
       
