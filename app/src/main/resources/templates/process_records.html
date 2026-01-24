@@ -86,6 +86,28 @@
                 </tr>
             </tbody>
         </table>
+
+        <!-- 分页控件 -->
+        <nav th:if="${page.totalPages > 1}" class="mt-3">
+            <ul class="pagination justify-content-center">
+                <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+                    <a class="page-item page-link"
+                        th:href="@{/logs/process(page=${page.number - 1}, projectName=${paramProjectName}, applicationName=${paramApplicationName}, taskId=${paramTaskId}, isAllowed=${paramIsAllowed})}">上一页</a>
+                </li>
+
+                <li class="page-item" th:each="i : ${#numbers.sequence(0, page.totalPages - 1)}"
+                    th:classappend="${i == page.number} ? 'active'">
+                    <a class="page-link"
+                        th:href="@{/logs/process(page=${i}, projectName=${paramProjectName}, applicationName=${paramApplicationName}, taskId=${paramTaskId}, isAllowed=${paramIsAllowed})}"
+                        th:text="${i + 1}">1</a>
+                </li>
+
+                <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+                    <a class="page-link"
+                        th:href="@{/logs/process(page=${page.number + 1}, projectName=${paramProjectName}, applicationName=${paramApplicationName}, taskId=${paramTaskId}, isAllowed=${paramIsAllowed})}">下一页</a>
+                </li>
+            </ul>
+        </nav>
     </div>
 </body>
 

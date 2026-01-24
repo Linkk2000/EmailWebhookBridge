@@ -69,7 +69,10 @@
             <tbody>
                 <tr th:each="webhook : ${webhooks}">
                     <td th:text="${webhook.id}">1</td>
-                    <td th:text="${webhook.name}">Default</td>
+                    <td>
+                        <a th:href="@{/webhooks/detail/{id}(id=${webhook.id})}" th:text="${webhook.name}"
+                            class="fw-bold text-decoration-none">Default</a>
+                    </td>
                     <td th:text="${webhook.url}">https://example.com</td>
                     <td>
                         <span th:if="${webhook.enabled}" class="badge bg-success">开启</span>

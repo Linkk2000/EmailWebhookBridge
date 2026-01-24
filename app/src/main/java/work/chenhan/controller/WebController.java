@@ -80,6 +80,99 @@ public class WebController {
         return "redirect:/webhooks";
     }
 
+    @GetMapping("/webhooks/detail/{id}")
+    public String webhookDetail(@PathVariable Long id,
+            @RequestParam(required = false) String projectName,
+            @RequestParam(required = false) String applicationName,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Model model) {
+        webhookConfigService.findById(id).ifPresent(config -> {
+            // 使用 Specification 进行过滤
+            org.springframework.data.jpa.domain.Specification<work.chenhan.entity.WebhookPushLog> spec = (root, query,
+                    cb) -> {
+                java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+                predicates.add(cb.equal(root.get("webhookUrl"), config.getUrl()));
+                if (projectName != null && !projectName.isBlank()) {
+                    predicates.add(cb.like(root.get("scaProjectName"), "%" + projectName + "%"));
+                }
+                if (applicationName != null && !applicationName.isBlank()) {
+                    predicates.add(cb.like(root.get("scaApplicationName"), "%" + applicationName + "%"));
+                }
+                if (status != null && !status.isBlank()) {
+                    predicates.add(cb.equal(root.get("status"), status));
+                }
+                return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+            };
+
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page,
+                    size,
+                    org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
+            org.springframework.data.domain.Page<work.chenhan.entity.WebhookPushLog> logPage = pushLogRepository
+                    .findAll(spec, pageable);
+
+            model.addAttribute("webhook", config);
+            model.addAttribute("logs", logPage.getContent());
+            model.addAttribute("page", logPage);
+
+            // 全局基础统计
+            long total = pushLogRepository
+                    .count((root, query, cb) -> cb.equal(root.get("webhookUrl"), config.getUrl()));
+            long success = pushLogRepository.count((root, query, cb) -> cb.and(
+                    cb.equal(root.get("webhookUrl"), config.getUrl()),
+                    cb.equal(root.get("status"), "SUCCESS")));
+            long failed = total - success;
+            double successRate = total > 0 ? (success * 100.0 / total) : 0;
+
+            model.addAttribute("statsTotal", total);
+            model.addAttribute("statsSuccess", success);
+            model.addAttribute("statsFailed", failed);
+            model.addAttribute("statsSuccessRate", String.format("%.1f", successRate));
+
+            // 构建趋势图统计 (最近 24 小时)
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            java.util.List<String> chartLabels = new java.util.ArrayList<>();
+            java.util.List<Long> chartSuccessData = new java.util.ArrayList<>();
+            java.util.List<Long> chartFailedData = new java.util.ArrayList<>();
+
+            // 预先查出最近 24 小时的所有日志
+            java.util.List<work.chenhan.entity.WebhookPushLog> recentLogs = pushLogRepository
+                    .findAll((root, query, cb) -> cb.and(
+                            cb.equal(root.get("webhookUrl"), config.getUrl()),
+                            cb.greaterThanOrEqualTo(root.get("pushedAt"), now.minusHours(24))));
+
+            for (int i = 23; i >= 0; i--) {
+                java.time.LocalDateTime hourStart = now.minusHours(i).withMinute(0).withSecond(0).withNano(0);
+                java.time.LocalDateTime hourEnd = hourStart.plusHours(1);
+
+                chartLabels.add(hourStart.format(java.time.format.DateTimeFormatter.ofPattern("HH:00")));
+
+                long hSuccess = recentLogs.stream()
+                        .filter(l -> "SUCCESS".equals(l.getStatus()) && !l.getPushedAt().isBefore(hourStart)
+                                && l.getPushedAt().isBefore(hourEnd))
+                        .count();
+                long hFailed = recentLogs.stream()
+                        .filter(l -> "FAILED".equals(l.getStatus()) && !l.getPushedAt().isBefore(hourStart)
+                                && l.getPushedAt().isBefore(hourEnd))
+                        .count();
+
+                chartSuccessData.add(hSuccess);
+                chartFailedData.add(hFailed);
+            }
+
+            model.addAttribute("chartLabels", chartLabels);
+            model.addAttribute("chartSuccessData", chartSuccessData);
+            model.addAttribute("chartFailedData", chartFailedData);
+
+            // 回显参数
+            model.addAttribute("paramProjectName", projectName);
+            model.addAttribute("paramApplicationName", applicationName);
+            model.addAttribute("paramStatus", status);
+        });
+        return "webhook_detail";
+    }
+
     // --- 日志查看 ---
 
     @GetMapping("/logs/push")
@@ -88,6 +181,8 @@ public class WebController {
             @RequestParam(required = false) String taskId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String webhookUrl,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             Model model) {
 
         org.springframework.data.jpa.domain.Specification<work.chenhan.entity.WebhookPushLog> spec = (root, query,
@@ -110,11 +205,16 @@ public class WebController {
                 predicates.add(cb.like(root.get("webhookUrl"), "%" + webhookUrl + "%"));
             }
 
-            query.orderBy(cb.desc(root.get("id")));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
 
-        model.addAttribute("logs", pushLogRepository.findAll(spec));
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
+        org.springframework.data.domain.Page<work.chenhan.entity.WebhookPushLog> logPage = pushLogRepository
+                .findAll(spec, pageable);
+
+        model.addAttribute("logs", logPage.getContent());
+        model.addAttribute("page", logPage);
 
         // 将筛选参数返回给视图以回填表单
         model.addAttribute("paramProjectName", projectName);
@@ -131,6 +231,8 @@ public class WebController {
             @RequestParam(required = false) String applicationName,
             @RequestParam(required = false) String taskId,
             @RequestParam(required = false) Boolean isAllowed,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             Model model) {
 
         org.springframework.data.jpa.domain.Specification<work.chenhan.entity.ScaProcessRecord> spec = (root, query,
@@ -150,11 +252,16 @@ public class WebController {
                 predicates.add(cb.equal(root.get("isAllowed"), isAllowed));
             }
 
-            query.orderBy(cb.desc(root.get("id")));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
 
-        model.addAttribute("records", processRecordRepository.findAll(spec));
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
+        org.springframework.data.domain.Page<work.chenhan.entity.ScaProcessRecord> recordPage = processRecordRepository
+                .findAll(spec, pageable);
+
+        model.addAttribute("records", recordPage.getContent());
+        model.addAttribute("page", recordPage);
 
         // 将筛选参数返回给视图以回填表单
         model.addAttribute("paramProjectName", projectName);

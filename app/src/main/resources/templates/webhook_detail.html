@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Webhook Details - EmailWebhookBridge</title>
+    <link th:href="@{/css/bootstrap.min.css}" rel="stylesheet">
+    <script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+    <script th:src="@{/js/chart.umd.min.js}"></script>
+    <style>
+        .stat-card {
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .response-container {
+            position: relative;
+            width: 250px;
+            height: 1.5em;
+        }
+
+        .response-cell {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: monospace;
+            font-size: 0.85em;
+            background: transparent;
+            transition: all 0.2s;
+            z-index: 1;
+        }
+
+        .response-cell:hover {
+            white-space: normal;
+            word-break: break-all;
+            max-width: 450px;
+            width: auto;
+            background: #fff;
+            border: 1px solid #0d6efd;
+            z-index: 100;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">EmailWebhookBridge</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="/webhooks">Webhook 管理</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/logs/process">放行记录</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/logs/push">推送日志</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4 py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1">
+                        <li class="breadcrumb-item"><a href="/webhooks">Webhook 管理</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">详情分析</li>
+                    </ol>
+                </nav>
+                <h2 th:text="${webhook.name}">Webhook 名称</h2>
+                <code class="text-muted" th:text="${webhook.url}">https://example.com/callback</code>
+            </div>
+            <div>
+                <span th:if="${webhook.lastStatus == 'UP'}" class="badge bg-success fs-6">存活</span>
+                <span th:if="${webhook.lastStatus == 'DOWN'}" class="badge bg-danger fs-6">离线</span>
+                <span th:if="${webhook.lastStatus == 'UNKNOWN'}" class="badge bg-secondary fs-6">未知</span>
+            </div>
+        </div>
+
+        <!-- 统计面板 (第一行) -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card border-primary">
+                    <div class="card-body text-center py-4">
+                        <h6 class="card-subtitle mb-2 text-muted">累计推送 (当前配置)</h6>
+                        <h2 class="card-title text-primary" th:text="${statsTotal}">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card border-success">
+                    <div class="card-body text-center py-4">
+                        <h6 class="card-subtitle mb-2 text-muted">成功次数</h6>
+                        <h2 class="card-title text-success" th:text="${statsSuccess}">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card border-danger">
+                    <div class="card-body text-center py-4">
+                        <h6 class="card-subtitle mb-2 text-muted">失败次数</h6>
+                        <h2 class="card-title text-danger" th:text="${statsFailed}">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card border-info">
+                    <div class="card-body text-center py-4">
+                        <h6 class="card-subtitle mb-2 text-muted">总成功率</h6>
+                        <h2 class="card-title text-info"><span th:text="${statsSuccessRate}">0.0</span>%</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 趋势图 (第二行) -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white fw-bold">最近 24 小时推送实时趋势数据走势</div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="successTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 过滤表单 -->
+        <div class="card mb-4 shadow-sm border-0 bg-light">
+            <div class="card-body">
+                <form th:action="@{/webhooks/detail/{id}(id=${webhook.id})}" method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" name="projectName" placeholder="按项目名搜索"
+                            th:value="${paramProjectName}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" name="applicationName" placeholder="按应用名搜索"
+                            th:value="${paramApplicationName}">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="status">
+                            <option value="" th:selected="${paramStatus == null}">展示所有状态</option>
+                            <option value="SUCCESS" th:selected="${paramStatus == 'SUCCESS'}">仅看成功</option>
+                            <option value="FAILED" th:selected="${paramStatus == 'FAILED'}">仅看失败</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100">开始筛选</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 推送历史 -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">流水历史记录</h5>
+                <span class="text-muted small" th:text="'共 ' + ${page.totalElements} + ' 条历史轨迹'">共 0 条</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>项目</th>
+                            <th>应用</th>
+                            <th>版本/分支</th>
+                            <th>任务 ID</th>
+                            <th>状态</th>
+                            <th>HTTP 码</th>
+                            <th>响应响应详情</th>
+                            <th>推送时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="log : ${logs}">
+                            <td th:text="${log.scaProjectName}">Project</td>
+                            <td th:text="${log.scaApplicationName}">App</td>
+                            <td th:text="${log.scaBranch} ?: '-'">-</td>
+                            <td th:text="${log.scaTaskId} ?: '-'">-</td>
+                            <td>
+                                <span th:if="${log.status == 'SUCCESS'}" class="badge bg-success">成功</span>
+                                <span th:unless="${log.status == 'SUCCESS'}" class="badge bg-danger">失败</span>
+                            </td>
+                            <td th:text="${log.httpStatusCode} ?: '-'">200</td>
+                            <td>
+                                <div class="response-container">
+                                    <div class="response-cell" th:text="${log.responseBody}" title="悬停查看完整响应内容">
+                                        Response...</div>
+                                </div>
+                            </td>
+                            <td th:text="${#temporals.format(log.pushedAt, 'yyyy-MM-dd HH:mm:ss')}">Time</td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(logs)}">
+                            <td colspan="8" class="text-center py-4 text-muted">暂无符合筛选条件的流水记录。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 分页 -->
+        <nav th:if="${page.totalPages > 1}" class="mt-4">
+            <ul class="pagination justify-content-center">
+                <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+                    <a class="page-link"
+                        th:href="@{/webhooks/detail/{id}(id=${webhook.id}, page=${page.number - 1}, projectName=${paramProjectName}, applicationName=${paramApplicationName}, status=${paramStatus})}">上一页</a>
+                </li>
+                <li class="page-item" th:each="i : ${#numbers.sequence(0, page.totalPages - 1)}"
+                    th:classappend="${i == page.number} ? 'active'">
+                    <a class="page-link"
+                        th:href="@{/webhooks/detail/{id}(id=${webhook.id}, page=${i}, projectName=${paramProjectName}, applicationName=${paramApplicationName}, status=${paramStatus})}"
+                        th:text="${i + 1}">1</a>
+                </li>
+                <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+                    <a class="page-link"
+                        th:href="@{/webhooks/detail/{id}(id=${webhook.id}, page=${page.number + 1}, projectName=${paramProjectName}, applicationName=${paramApplicationName}, status=${paramStatus})}">下一页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    <script th:inline="javascript">
+        const ctx = document.getElementById('successTrendChart').getContext('2d');
+        const labels = /*[[${chartLabels}]]*/[];
+        const successData = /*[[${chartSuccessData}]]*/[];
+        const failedData = /*[[${chartFailedData}]]*/[];
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '成功推送',
+                        data: successData,
+                        borderColor: '#198754',
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: '失败推送',
+                        data: failedData,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            precision: 0
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#333',
+                        bodyColor: '#666',
+                        borderColor: '#ddd',
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: true,
+                        callbacks: {
+                            labelColor: function (context) {
+                                return {
+                                    borderColor: context.dataset.borderColor,
+                                    backgroundColor: context.dataset.borderColor
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

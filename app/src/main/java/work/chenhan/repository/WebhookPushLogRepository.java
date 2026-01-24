@@ -6,4 +6,6 @@ import work.chenhan.entity.WebhookPushLog;
 
 public interface WebhookPushLogRepository
         extends JpaRepository<WebhookPushLog, Long>, JpaSpecificationExecutor<WebhookPushLog> {
+
+    java.util.List<work.chenhan.entity.WebhookPushLog> findByWebhookUrlOrderByPushedAtDesc(String webhookUrl);
 }
