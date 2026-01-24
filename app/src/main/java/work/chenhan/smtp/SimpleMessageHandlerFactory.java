@@ -33,6 +33,7 @@ public class SimpleMessageHandlerFactory implements MessageHandlerFactory {
             @Override
             public void from(String from) throws RejectException {
                 this.from = from;
+                this.recipients.clear();
             }
 
             @Override

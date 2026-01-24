@@ -2,5 +2,13 @@ spring:
   application:
     name: EmailWebhookBridge
 
+
 smtp:
   port: 2525
+
+app:
+  async:
+    core-pool-size: 5
+    max-pool-size: 20
+    queue-capacity: 500
+    thread-name-prefix: "EmailProc-"
