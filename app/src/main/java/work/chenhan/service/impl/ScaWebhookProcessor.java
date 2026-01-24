@@ -114,22 +114,35 @@ public class ScaWebhookProcessor implements EmailProcessor {
     }
 
     private void sendWebhook(ScaWebhookPayload payload) {
-        String pushStatus = "UNKNOWN";
+        String status = "FAILED";
+        Integer statusCode = null;
+        String responseBody = null;
+
         try {
-            restClient.post()
+            org.springframework.http.ResponseEntity<Void> response = restClient.post()
                     .uri(webhookUrl)
                     .body(payload)
                     .retrieve()
                     .toBodilessEntity();
-            log.info("Successfully sent webhook to {}", webhookUrl);
-            pushStatus = "SUCCESS";
+
+            statusCode = response.getStatusCode().value();
+            status = response.getStatusCode().is2xxSuccessful() ? "SUCCESS" : "FAILED";
+            log.info("Successfully sent webhook to {}. Status: {}", webhookUrl, statusCode);
+        } catch (org.springframework.web.client.RestClientResponseException e) {
+            statusCode = e.getStatusCode().value();
+            responseBody = e.getResponseBodyAsString();
+            status = "FAILED";
+            log.error("Webhook failed with HTTP error: {} {}", statusCode, e.getStatusText());
         } catch (Exception e) {
+            responseBody = e.getMessage();
+            status = "FAILED";
             log.error("Failed to send webhook to {}", webhookUrl, e);
-            pushStatus = "FAILED: " + e.getMessage();
-            if (pushStatus.length() > 255)
-                pushStatus = pushStatus.substring(0, 255);
         } finally {
-            savePushLog(payload, pushStatus);
+            // Truncate response body if too long
+            if (responseBody != null && responseBody.length() > 2048) {
+                responseBody = responseBody.substring(0, 2048);
+            }
+            savePushLog(payload, status, statusCode, responseBody, webhookUrl);
         }
     }
 
@@ -150,7 +163,8 @@ public class ScaWebhookProcessor implements EmailProcessor {
         }
     }
 
-    private void savePushLog(ScaWebhookPayload payload, String status) {
+    private void savePushLog(ScaWebhookPayload payload, String status, Integer statusCode, String responseBody,
+            String url) {
         try {
             work.chenhan.entity.WebhookPushLog log = new work.chenhan.entity.WebhookPushLog();
             log.setScaProjectName(payload.getScaProjectName());
@@ -160,7 +174,13 @@ public class ScaWebhookProcessor implements EmailProcessor {
             log.setScaAppId(payload.getScaAppId());
             log.setScaStartTime(payload.getScaStartTime());
             log.setScaEndTime(payload.getScaEndTime());
-            log.setPushStatus(status);
+
+            // New Fields
+            log.setStatus(status);
+            log.setHttpStatusCode(statusCode);
+            log.setResponseBody(responseBody);
+            log.setWebhookUrl(url);
+
             pushLogRepository.save(log);
         } catch (Exception e) {
             log.error("Failed to save push log", e);

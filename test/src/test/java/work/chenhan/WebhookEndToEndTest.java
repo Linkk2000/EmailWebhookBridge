@@ -14,10 +14,10 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = { Main.class,
-        TestWebhookController.class }, webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
+        TestWebhookController.class }, webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, properties = "smtp.port=2526")
 class WebhookEndToEndTest {
 
-    private static final int SMTP_PORT = 2525;
+    private static final int SMTP_PORT = 2526;
 
     @org.springframework.beans.factory.annotation.Autowired
     private work.chenhan.repository.ScaProcessRecordRepository processRecordRepository;
@@ -91,8 +91,22 @@ class WebhookEndToEndTest {
         assertEquals("测试用", record.getScaProjectName());
 
         work.chenhan.entity.WebhookPushLog log = pushLogRepository.findAll().get(0);
-        assertEquals("SUCCESS", log.getPushStatus(), "Push status should be SUCCESS");
+        assertEquals("SUCCESS", log.getStatus(), "Push status should be SUCCESS");
         assertEquals("测试用", log.getScaProjectName());
+        assertEquals(200, log.getHttpStatusCode());
+        // Verify URL contains expected path (configured in test yaml or overridden?)
+        // In this test, TestWebhookController is local.
+        // Wait, did we override sca.webhook.url in test?
+        // No, TestWebhookController runs on random port?
+        // Ah, `WebhookEndToEndTest` has `@SpringBootTest(webEnvironment =
+        // ...DEFINED_PORT)`.
+        // and TestWebhookController is a Bean.
+        // But application.yml has "http://localhost:8080/callback".
+        // The test environment usually picks up application-test.yml if exists, or
+        // application.yml.
+        // If DEFINED_PORT is used, default is 8080 unless configured.
+        // Let's assume it hits localhost:8080/callback.
+        assertEquals("http://localhost:9090/callback", log.getWebhookUrl());
     }
 
     private void readExpect(BufferedReader reader, String code) throws Exception {

@@ -34,8 +34,20 @@ public class WebhookPushLog {
     private String scaEndTime;
 
     // 推送特定字段
-    @Column(name = "push_status")
-    private String pushStatus; // 例如 "SUCCESS", "FAILED"
+    // 状态: SUCCESS / FAILED
+    @Column(name = "status")
+    private String status;
+
+    @Column(name = "http_status_code")
+    private Integer httpStatusCode;
+
+    // 记录响应体或错误信息
+    @Column(name = "response_body", length = 2048)
+    private String responseBody;
+
+    // 记录目标 Webhook 地址
+    @Column(name = "webhook_url")
+    private String webhookUrl;
 
     @Column(name = "pushed_at")
     private LocalDateTime pushedAt;
@@ -112,12 +124,36 @@ public class WebhookPushLog {
         this.scaEndTime = scaEndTime;
     }
 
-    public String getPushStatus() {
-        return pushStatus;
+    public String getStatus() {
+        return status;
     }
 
-    public void setPushStatus(String pushStatus) {
-        this.pushStatus = pushStatus;
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Integer getHttpStatusCode() {
+        return httpStatusCode;
+    }
+
+    public void setHttpStatusCode(Integer httpStatusCode) {
+        this.httpStatusCode = httpStatusCode;
+    }
+
+    public String getResponseBody() {
+        return responseBody;
+    }
+
+    public void setResponseBody(String responseBody) {
+        this.responseBody = responseBody;
+    }
+
+    public String getWebhookUrl() {
+        return webhookUrl;
+    }
+
+    public void setWebhookUrl(String webhookUrl) {
+        this.webhookUrl = webhookUrl;
     }
 
     public LocalDateTime getPushedAt() {
