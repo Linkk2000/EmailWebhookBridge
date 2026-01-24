@@ -76,5 +76,23 @@ if json_data.get('scaProjectName') == 'CONNECTION_TEST':
 - `webhook_server.py`：模拟一个带探活支持的下游 Webhook 接收服务器。
 - `send_test_email.py`：模拟发送一封符合 SCA 格式的测试邮件。
 
+### 部署建议
+
+1.  **Docker 部署 (推荐)**
+    项目提供 `docker-compose.yml` 支持一键部署：
+    ```bash
+    docker compose up -d
+    ```
+    *   **持久化**：
+        *   `./data`：存放 H2 数据库文件。
+        *   `./logs`：存放应用运行日志（`spring.log`）。
+    *   **外部数据库**：在 `docker-compose.yml` 的 `environment` 中指定 `SPRING_DATASOURCE_URL` 等变量。
+
+2.  **二进制部署**
+    ```bash
+    mvn clean package -DskipTests
+    java -jar app/target/app-1.0-SNAPSHOT-exec.jar
+    ```
+
 ---
 

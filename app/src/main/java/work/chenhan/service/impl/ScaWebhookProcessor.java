@@ -7,7 +7,6 @@ import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
@@ -29,7 +28,6 @@ public class ScaWebhookProcessor implements EmailProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(ScaWebhookProcessor.class);
 
-    private final String defaultWebhookUrl;
     private final RestClient restClient;
     private final work.chenhan.service.ScaEnrichmentService enrichmentService;
     private final work.chenhan.repository.ScaProcessRecordRepository processRecordRepository;
@@ -50,13 +48,11 @@ public class ScaWebhookProcessor implements EmailProcessor {
     // 检测完成时间：2026-01-22 14:35:57
     private static final Pattern END_TIME_PATTERN = Pattern.compile("检测完成时间：(.*)");
 
-    public ScaWebhookProcessor(@Value("${sca.webhook.url:#{null}}") String defaultWebhookUrl,
-            RestClient.Builder restClientBuilder,
+    public ScaWebhookProcessor(RestClient.Builder restClientBuilder,
             work.chenhan.service.ScaEnrichmentService enrichmentService,
             work.chenhan.repository.ScaProcessRecordRepository processRecordRepository,
             work.chenhan.repository.WebhookPushLogRepository pushLogRepository,
             work.chenhan.service.WebhookConfigService webhookConfigService) {
-        this.defaultWebhookUrl = defaultWebhookUrl;
         this.restClient = restClientBuilder.build();
         this.enrichmentService = enrichmentService;
         this.processRecordRepository = processRecordRepository;
@@ -87,9 +83,8 @@ public class ScaWebhookProcessor implements EmailProcessor {
                     java.util.List<work.chenhan.entity.WebhookConfig> configs = webhookConfigService
                             .getEnabledConfigs();
 
-                    if (configs.isEmpty() && defaultWebhookUrl != null && !defaultWebhookUrl.isBlank()) {
-                        // 如果数据库为空，回退使用属性文件中定义的 URL
-                        sendWebhook(payload, defaultWebhookUrl, "默认配置 (Properties)", null);
+                    if (configs.isEmpty()) {
+                        log.info("未配置任何启用的 Webhook，跳过推送。");
                     } else {
                         for (work.chenhan.entity.WebhookConfig config : configs) {
                             if ("DOWN".equals(config.getLastStatus())) {

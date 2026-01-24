@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    container_name: email-webhook-bridge
+    restart: always
+    ports:
+      - "8080:8080"  # Web UI
+      - "2525:2525"  # SMTP Port
+    volumes:
+      - ./data:/app/data  # 挂载 H2 数据库文件
+      - ./logs:/app/logs  # 挂载运行日志
+    environment:
+      # 指定生效环境：dev (H2) / prod (MySQL)
+      - SPRING_PROFILES_ACTIVE=dev
+      
+      # 日志配置：将日志持久化到挂载目录
+      - LOGGING_FILE_NAME=/app/logs/spring.log
+      
+      # 若使用 prod 模型，可在此覆盖 MySQL 配置（取消注释并修改）
+      # - SPRING_DATASOURCE_URL=jdbc:mysql://your-external-db:3306/email_bridge?useSSL=false
+      # - SPRING_DATASOURCE_USERNAME=root
+      # - SPRING_DATASOURCE_PASSWORD=your_password
+      
+      # 覆盖 SMTP 端口 (若需要)
+      - SMTP_PORT=2525
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
