@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: EmailWebhookBridge
+
+smtp:
+  port: 2525
