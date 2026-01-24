@@ -15,9 +15,8 @@ RUN mvn clean package -pl app -DskipTests
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# 设置时区
+# 设置默认时区环境变量
 ENV TZ=Asia/Shanghai
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 从构建阶段复制 jar 包
 COPY --from=build /build/app/target/app-1.0-SNAPSHOT-exec.jar app.jar

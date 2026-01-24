@@ -21,6 +21,9 @@ services:
       # - SPRING_DATASOURCE_USERNAME=root
       # - SPRING_DATASOURCE_PASSWORD=your_password
       
+      # 时区配置
+      - TZ=Asia/Shanghai
+      
       # 覆盖 SMTP 端口 (若需要)
       - SMTP_PORT=2525
     logging:
