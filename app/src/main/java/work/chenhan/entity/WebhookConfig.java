@@ -23,6 +23,16 @@ public class WebhookConfig {
     @Column(name = "enabled")
     private Boolean enabled = true;
 
+    // 健康状态: UP, DOWN, UNKNOWN
+    @Column(name = "last_status")
+    private String lastStatus = "UNKNOWN";
+
+    @Column(name = "error_message", length = 1024)
+    private String errorMessage;
+
+    @Column(name = "last_tested_at")
+    private LocalDateTime lastTestedAt;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -34,6 +44,30 @@ public class WebhookConfig {
     }
 
     // Getters and Setters
+    public String getLastStatus() {
+        return lastStatus;
+    }
+
+    public void setLastStatus(String lastStatus) {
+        this.lastStatus = lastStatus;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+
+    public LocalDateTime getLastTestedAt() {
+        return lastTestedAt;
+    }
+
+    public void setLastTestedAt(LocalDateTime lastTestedAt) {
+        this.lastTestedAt = lastTestedAt;
+    }
+
     public Long getId() {
         return id;
     }

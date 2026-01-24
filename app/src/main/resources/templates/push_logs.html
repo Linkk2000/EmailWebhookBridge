@@ -6,24 +6,40 @@
     <title>Push Logs - EmailWebhookBridge</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        .response-container {
+            position: relative;
+            width: 300px;
+            height: 1.5em;
+            /* 保持固定高度防止跳动 */
+        }
+
         .response-cell {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
             max-width: 300px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             font-family: monospace;
             font-size: 0.9em;
+            background: transparent;
+            transition: all 0.2s;
+            z-index: 1;
         }
 
         .response-cell:hover {
             white-space: normal;
             word-break: break-all;
-            position: absolute;
+            max-width: 500px;
+            width: auto;
             background: #fff;
-            border: 1px solid #ccc;
-            z-index: 10;
-            padding: 5px;
-            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #0d6efd;
+            z-index: 100;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -110,13 +126,15 @@
                     <td th:text="${log.webhookUrl}"
                         style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">http://...</td>
                     <td>
-                        <div class="response-cell" th:text="${log.responseBody}" title="Hover to view full">Error...
+                        <div class="response-container">
+                            <div class="response-cell" th:text="${log.responseBody}" title="点击或悬停查看完整内容">Error...
+                            </div>
                         </div>
                     </td>
                     <td th:text="${#temporals.format(log.pushedAt, 'yyyy-MM-dd HH:mm:ss')}">Time</td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(logs)}">
-                    <td colspan="8" class="text-center">暂无推送记录。</td>
+                    <td colspan="11" class="text-center">暂无推送记录。</td>
                 </tr>
             </tbody>
         </table>

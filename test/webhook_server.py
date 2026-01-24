@@ -13,22 +13,44 @@ class WebhookReceiverHandler(http.server.SimpleHTTPRequestHandler):
                 print(f"{key}: {value}")
             print("------------------------------------------------")
 
-            length_header = self.headers.get('Content-Length')
-            content_length = int(length_header) if length_header else 0
-            
-            if content_length > 0:
-                post_data = self.rfile.read(content_length)
+            post_data = b''
+            # 处理分块传输编码 (Transfer-Encoding: chunked)
+            if self.headers.get('Transfer-Encoding') == 'chunked':
                 try:
-                    # 尝试解析并格式化打印 JSON
+                    while True:
+                        line = self.rfile.readline().strip()
+                        if not line: break
+                        chunk_size = int(line, 16)
+                        if chunk_size == 0:
+                            self.rfile.readline() # 跳过最后的空白行
+                            break
+                        post_data += self.rfile.read(chunk_size)
+                        self.rfile.readline() # 跳过块末尾的 CRLF
+                except Exception as e:
+                    print(f"[解块错误] {e}")
+            else:
+                length_header = self.headers.get('Content-Length')
+                content_length = int(length_header) if length_header else 0
+                if content_length > 0:
+                    post_data = self.rfile.read(content_length)
+
+            if post_data:
+                try:
+                    # 尝试解析 JSON
                     json_data = json.loads(post_data.decode('utf-8'))
+                    
+                    # 识别探活/Ping 报文
+                    if json_data.get('scaProjectName') == 'CONNECTION_TEST':
+                        print("[探活确认] 接收到连接测试请求（Ping）。")
+                    
+                    # 格式化打印所有接收到的 JSON
                     print(json.dumps(json_data, indent=4, ensure_ascii=False))
-                except:
+                except Exception as e:
                     # 解析失败则回退到打印原始文本
+                    print(f"[数据处理出错] {e}")
                     print(post_data.decode('utf-8'))
             else:
-                print("(无消息体或未提供 Content-Length)")
-            
-            print("------------------------------------------------\n")
+                print("(无消息体)")
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')

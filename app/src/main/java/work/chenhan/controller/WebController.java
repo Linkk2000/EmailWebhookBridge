@@ -14,13 +14,16 @@ public class WebController {
     private final work.chenhan.service.WebhookConfigService webhookConfigService;
     private final ScaProcessRecordRepository processRecordRepository;
     private final WebhookPushLogRepository pushLogRepository;
+    private final org.springframework.web.client.RestClient.Builder restClientBuilder;
 
     public WebController(work.chenhan.service.WebhookConfigService webhookConfigService,
             ScaProcessRecordRepository processRecordRepository,
-            WebhookPushLogRepository pushLogRepository) {
+            WebhookPushLogRepository pushLogRepository,
+            org.springframework.web.client.RestClient.Builder restClientBuilder) {
         this.webhookConfigService = webhookConfigService;
         this.processRecordRepository = processRecordRepository;
         this.pushLogRepository = pushLogRepository;
+        this.restClientBuilder = restClientBuilder;
     }
 
     @GetMapping("/")
@@ -59,6 +62,21 @@ public class WebController {
     @GetMapping("/webhooks/toggle/{id}")
     public String toggleWebhook(@PathVariable Long id) {
         webhookConfigService.toggleEnabled(id);
+        return "redirect:/webhooks";
+    }
+
+    @GetMapping("/webhooks/test/{id}")
+    public String testWebhook(@PathVariable Long id,
+            org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+
+        webhookConfigService.testConnection(id, restClientBuilder.build());
+        webhookConfigService.findById(id).ifPresent(config -> {
+            if ("UP".equals(config.getLastStatus())) {
+                redirectAttributes.addFlashAttribute("successMessage", "测试成功！Webhook 连接正常。");
+            } else {
+                redirectAttributes.addFlashAttribute("errorMessage", "测试失败: " + config.getErrorMessage());
+            }
+        });
         return "redirect:/webhooks";
     }
 

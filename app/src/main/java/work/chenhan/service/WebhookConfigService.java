@@ -74,6 +74,52 @@ public class WebhookConfigService {
     public void toggleEnabled(Long id) {
         repository.findById(id).ifPresent(config -> {
             config.setEnabled(!config.getEnabled());
+            // 切换状态时重置健康状态
+            config.setLastStatus("UNKNOWN");
+            config.setErrorMessage(null);
+            repository.save(config);
+        });
+    }
+
+    /**
+     * 手动测试连通性。
+     */
+    @CacheEvict(value = "enabled_webhooks", allEntries = true)
+    public void testConnection(Long id, org.springframework.web.client.RestClient restClient) {
+        repository.findById(id).ifPresent(config -> {
+            work.chenhan.dto.ScaWebhookPayload ping = new work.chenhan.dto.ScaWebhookPayload();
+            ping.setScaProjectName("CONNECTION_TEST");
+            ping.setScaApplicationName("PING");
+            ping.setScaTaskId("TEST-" + System.currentTimeMillis());
+
+            try {
+                restClient.post()
+                        .uri(config.getUrl())
+                        .body(ping)
+                        .retrieve()
+                        .toBodilessEntity();
+
+                config.setLastStatus("UP");
+                config.setErrorMessage(null);
+            } catch (Exception e) {
+                config.setLastStatus("DOWN");
+                config.setErrorMessage(e.getMessage());
+            } finally {
+                config.setLastTestedAt(java.time.LocalDateTime.now());
+                repository.save(config);
+            }
+        });
+    }
+
+    /**
+     * 自动更新状态（供处理器调用）。
+     */
+    @CacheEvict(value = "enabled_webhooks", allEntries = true)
+    public void updateStatus(Long id, String status, String error) {
+        repository.findById(id).ifPresent(config -> {
+            config.setLastStatus(status);
+            config.setErrorMessage(error);
+            config.setLastTestedAt(java.time.LocalDateTime.now());
             repository.save(config);
         });
     }

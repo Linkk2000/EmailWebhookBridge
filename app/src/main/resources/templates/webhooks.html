@@ -29,6 +29,11 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
 
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+            <span th:text="${successMessage}">成功信息</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
         <div class="card mb-4 mt-3">
             <div class="card-header">添加新 Webhook</div>
             <div class="card-body">
@@ -54,8 +59,9 @@
                     <th>ID</th>
                     <th>名称</th>
                     <th>URL</th>
-                    <th>状态</th>
-                    <th>创建时间</th>
+                    <th>开关</th>
+                    <th>健康状态</th>
+                    <th>最后测试</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -65,11 +71,23 @@
                     <td th:text="${webhook.name}">Default</td>
                     <td th:text="${webhook.url}">https://example.com</td>
                     <td>
-                        <span th:if="${webhook.enabled}" class="badge bg-success">启用</span>
-                        <span th:unless="${webhook.enabled}" class="badge bg-secondary">禁用</span>
+                        <span th:if="${webhook.enabled}" class="badge bg-success">开启</span>
+                        <span th:unless="${webhook.enabled}" class="badge bg-secondary">关闭</span>
                     </td>
-                    <td th:text="${#temporals.format(webhook.createdAt, 'yyyy-MM-dd HH:mm:ss')}">2026-01-01 12:00</td>
                     <td>
+                        <span th:if="${webhook.lastStatus == 'UP'}" class="badge bg-success">存活</span>
+                        <span th:if="${webhook.lastStatus == 'DOWN'}" class="badge bg-danger"
+                            th:title="${webhook.errorMessage}" style="cursor: help;">离线(?)</span>
+                        <span th:if="${webhook.lastStatus == 'UNKNOWN'}"
+                            class="badge bg-light text-dark border">未知</span>
+                    </td>
+                    <td
+                        th:text="${webhook.lastTestedAt != null ? #temporals.format(webhook.lastTestedAt, 'HH:mm:ss') : '-'}">
+                        -</td>
+                    <td>
+                        <a th:href="@{/webhooks/test/{id}(id=${webhook.id})}"
+                            class="btn btn-info btn-sm text-white">测试</a>
+
                         <a th:href="@{/webhooks/toggle/{id}(id=${webhook.id})}" class="btn btn-sm"
                             th:classappend="${webhook.enabled} ? 'btn-warning' : 'btn-success'"
                             th:text="${webhook.enabled} ? '禁用' : '启用'">禁用</a>

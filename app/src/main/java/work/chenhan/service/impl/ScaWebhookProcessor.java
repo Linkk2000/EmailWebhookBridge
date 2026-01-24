@@ -89,10 +89,14 @@ public class ScaWebhookProcessor implements EmailProcessor {
 
                     if (configs.isEmpty() && defaultWebhookUrl != null && !defaultWebhookUrl.isBlank()) {
                         // 如果数据库为空，回退使用属性文件中定义的 URL
-                        sendWebhook(payload, defaultWebhookUrl, "默认配置 (Properties)");
+                        sendWebhook(payload, defaultWebhookUrl, "默认配置 (Properties)", null);
                     } else {
                         for (work.chenhan.entity.WebhookConfig config : configs) {
-                            sendWebhook(payload, config.getUrl(), config.getName());
+                            if ("DOWN".equals(config.getLastStatus())) {
+                                log.warn("Webhook {} 状态为 DOWN，跳过本次推送。", config.getUrl());
+                                continue;
+                            }
+                            sendWebhook(payload, config.getUrl(), config.getName(), config.getId());
                         }
                     }
                 } else {
@@ -126,10 +130,11 @@ public class ScaWebhookProcessor implements EmailProcessor {
         return payload;
     }
 
-    private void sendWebhook(ScaWebhookPayload payload, String targetUrl, String webhookName) {
+    private void sendWebhook(ScaWebhookPayload payload, String targetUrl, String webhookName, Long webhookId) {
         String status = "FAILED";
         Integer statusCode = null;
         String responseBody = null;
+        String errorMsg = null;
 
         try {
             org.springframework.http.ResponseEntity<String> response = restClient.post()
@@ -142,15 +147,27 @@ public class ScaWebhookProcessor implements EmailProcessor {
             status = response.getStatusCode().is2xxSuccessful() ? "SUCCESS" : "FAILED";
             responseBody = response.getBody();
             log.info("成功发送 Webhook 至 {}。状态码: {}", targetUrl, statusCode);
+
+            if (webhookId != null) {
+                webhookConfigService.updateStatus(webhookId, "UP", null);
+            }
         } catch (org.springframework.web.client.RestClientResponseException e) {
             statusCode = e.getStatusCode().value();
             responseBody = e.getResponseBodyAsString();
+            errorMsg = e.getStatusText();
             status = "FAILED";
-            log.error("Webhook 发送失败，HTTP 错误: {} {}", statusCode, e.getStatusText());
+            log.error("Webhook 发送失败，HTTP 错误: {} {}", statusCode, errorMsg);
+            if (webhookId != null) {
+                webhookConfigService.updateStatus(webhookId, "DOWN", "HTTP " + statusCode + ": " + errorMsg);
+            }
         } catch (Exception e) {
             responseBody = e.getMessage();
+            errorMsg = e.getMessage();
             status = "FAILED";
             log.error("发送 Webhook 至 {} 失败", targetUrl, e);
+            if (webhookId != null) {
+                webhookConfigService.updateStatus(webhookId, "DOWN", errorMsg);
+            }
         } finally {
             // 如果响应体过长（>2048字符），截断以避免数据库错误
             if (responseBody != null && responseBody.length() > 2048) {
