@@ -11,17 +11,24 @@ import org.subethamail.smtp.RejectException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import work.chenhan.service.EmailProcessor;
 
 @Component
 public class SimpleMessageHandlerFactory implements MessageHandlerFactory {
 
     private static final Logger log = LoggerFactory.getLogger(SimpleMessageHandlerFactory.class);
 
+    private final EmailProcessor emailProcessor;
+
+    public SimpleMessageHandlerFactory(EmailProcessor emailProcessor) {
+        this.emailProcessor = emailProcessor;
+    }
+
     @Override
     public MessageHandler create(MessageContext ctx) {
         return new MessageHandler() {
             private String from;
-            private String recipient;
+            private final java.util.List<String> recipients = new java.util.ArrayList<>();
 
             @Override
             public void from(String from) throws RejectException {
@@ -30,13 +37,23 @@ public class SimpleMessageHandlerFactory implements MessageHandlerFactory {
 
             @Override
             public void recipient(String recipient) throws RejectException {
-                this.recipient = recipient;
+                this.recipients.add(recipient);
             }
 
             @Override
             public void data(InputStream data) throws IOException {
                 byte[] payload = readAllBytes(data);
-                log.info("SMTP message received. from={}, to={}, size={} bytes", from, recipient, payload.length);
+                log.info("SMTP message received. from={}, recipients={}, size={} bytes", from, recipients,
+                        payload.length);
+
+                work.chenhan.dto.EmailContent content = new work.chenhan.dto.EmailContent(
+                        from,
+                        new java.util.ArrayList<>(recipients),
+                        payload,
+                        java.time.LocalDateTime.now());
+
+                // Asynchronous processing according to requirements
+                emailProcessor.process(content);
             }
 
             @Override
