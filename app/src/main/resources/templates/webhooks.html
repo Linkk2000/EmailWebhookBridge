@@ -23,6 +23,12 @@
 
     <div class="container">
         <h2>Webhook 配置管理</h2>
+
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+            <span th:text="${errorMessage}">错误信息</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
         <div class="card mb-4 mt-3">
             <div class="card-header">添加新 Webhook</div>
             <div class="card-body">

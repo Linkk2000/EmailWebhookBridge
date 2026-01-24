@@ -16,7 +16,7 @@ public class WebhookConfig {
     private String name;
 
     // 目标 URL
-    @Column(name = "url", nullable = false)
+    @Column(name = "url", nullable = false, unique = true)
     private String url;
 
     // 是否启用

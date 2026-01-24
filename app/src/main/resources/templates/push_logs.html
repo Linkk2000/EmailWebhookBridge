@@ -82,6 +82,7 @@
             <thead class="table-dark">
                 <tr>
                     <th>ID</th>
+                    <th>Webhook名称</th>
                     <th>项目名称</th>
                     <th>应用名称</th>
                     <th>分支/版本</th>
@@ -96,6 +97,7 @@
             <tbody>
                 <tr th:each="log : ${logs}">
                     <td th:text="${log.id}">1</td>
+                    <td th:text="${log.webhookName}">Name</td>
                     <td th:text="${log.scaProjectName}">Proj</td>
                     <td th:text="${log.scaApplicationName}">App</td>
                     <td th:text="${log.scaBranch}">Master</td>

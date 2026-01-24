@@ -49,6 +49,10 @@ public class WebhookPushLog {
     @Column(name = "webhook_url")
     private String webhookUrl;
 
+    // 记录 Webhook 名称快照
+    @Column(name = "webhook_name")
+    private String webhookName;
+
     @Column(name = "pushed_at")
     private LocalDateTime pushedAt;
 
@@ -154,6 +158,14 @@ public class WebhookPushLog {
 
     public void setWebhookUrl(String webhookUrl) {
         this.webhookUrl = webhookUrl;
+    }
+
+    public String getWebhookName() {
+        return webhookName;
+    }
+
+    public void setWebhookName(String webhookName) {
+        this.webhookName = webhookName;
     }
 
     public LocalDateTime getPushedAt() {

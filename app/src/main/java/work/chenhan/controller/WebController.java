@@ -1,25 +1,24 @@
 package work.chenhan.controller;
 
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import work.chenhan.entity.WebhookConfig;
 import work.chenhan.repository.ScaProcessRecordRepository;
-import work.chenhan.repository.WebhookConfigRepository;
+
 import work.chenhan.repository.WebhookPushLogRepository;
 
 @Controller
 public class WebController {
 
-    private final WebhookConfigRepository webhookConfigRepository;
+    private final work.chenhan.service.WebhookConfigService webhookConfigService;
     private final ScaProcessRecordRepository processRecordRepository;
     private final WebhookPushLogRepository pushLogRepository;
 
-    public WebController(WebhookConfigRepository webhookConfigRepository,
+    public WebController(work.chenhan.service.WebhookConfigService webhookConfigService,
             ScaProcessRecordRepository processRecordRepository,
             WebhookPushLogRepository pushLogRepository) {
-        this.webhookConfigRepository = webhookConfigRepository;
+        this.webhookConfigService = webhookConfigService;
         this.processRecordRepository = processRecordRepository;
         this.pushLogRepository = pushLogRepository;
     }
@@ -33,31 +32,33 @@ public class WebController {
 
     @GetMapping("/webhooks")
     public String listWebhooks(Model model) {
-        model.addAttribute("webhooks", webhookConfigRepository.findAll(Sort.by(Sort.Direction.DESC, "id")));
+        model.addAttribute("webhooks", webhookConfigService.getAllConfigs());
         model.addAttribute("newWebhook", new WebhookConfig());
         return "webhooks";
     }
 
     @PostMapping("/webhooks")
-    public String addWebhook(@ModelAttribute WebhookConfig webhookConfig) {
+    public String addWebhook(@ModelAttribute WebhookConfig webhookConfig,
+            org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
         if (webhookConfig.getUrl() != null && !webhookConfig.getUrl().isBlank()) {
-            webhookConfigRepository.save(webhookConfig);
+            try {
+                webhookConfigService.save(webhookConfig);
+            } catch (RuntimeException e) {
+                redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            }
         }
         return "redirect:/webhooks";
     }
 
     @GetMapping("/webhooks/delete/{id}")
     public String deleteWebhook(@PathVariable Long id) {
-        webhookConfigRepository.deleteById(id);
+        webhookConfigService.deleteById(id);
         return "redirect:/webhooks";
     }
 
     @GetMapping("/webhooks/toggle/{id}")
     public String toggleWebhook(@PathVariable Long id) {
-        webhookConfigRepository.findById(id).ifPresent(config -> {
-            config.setEnabled(!config.getEnabled());
-            webhookConfigRepository.save(config);
-        });
+        webhookConfigService.toggleEnabled(id);
         return "redirect:/webhooks";
     }
 

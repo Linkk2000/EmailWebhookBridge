@@ -34,7 +34,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
     private final work.chenhan.service.ScaEnrichmentService enrichmentService;
     private final work.chenhan.repository.ScaProcessRecordRepository processRecordRepository;
     private final work.chenhan.repository.WebhookPushLogRepository pushLogRepository;
-    private final work.chenhan.repository.WebhookConfigRepository webhookConfigRepository;
+    private final work.chenhan.service.WebhookConfigService webhookConfigService;
 
     // 正则表达式模式
     // 项目名称：测试用，应用名称：管理系统企业前端，应用版本：master
@@ -55,13 +55,13 @@ public class ScaWebhookProcessor implements EmailProcessor {
             work.chenhan.service.ScaEnrichmentService enrichmentService,
             work.chenhan.repository.ScaProcessRecordRepository processRecordRepository,
             work.chenhan.repository.WebhookPushLogRepository pushLogRepository,
-            work.chenhan.repository.WebhookConfigRepository webhookConfigRepository) {
+            work.chenhan.service.WebhookConfigService webhookConfigService) {
         this.defaultWebhookUrl = defaultWebhookUrl;
         this.restClient = restClientBuilder.build();
         this.enrichmentService = enrichmentService;
         this.processRecordRepository = processRecordRepository;
         this.pushLogRepository = pushLogRepository;
-        this.webhookConfigRepository = webhookConfigRepository;
+        this.webhookConfigService = webhookConfigService;
     }
 
     @Override
@@ -84,15 +84,15 @@ public class ScaWebhookProcessor implements EmailProcessor {
                 if (allowed) {
                     // 3. 发送 Webhook 并记录日志
                     // 广播给所有已启用的 Webhook
-                    java.util.List<work.chenhan.entity.WebhookConfig> configs = webhookConfigRepository
-                            .findByEnabledTrue();
+                    java.util.List<work.chenhan.entity.WebhookConfig> configs = webhookConfigService
+                            .getEnabledConfigs();
 
                     if (configs.isEmpty() && defaultWebhookUrl != null && !defaultWebhookUrl.isBlank()) {
                         // 如果数据库为空，回退使用属性文件中定义的 URL
-                        sendWebhook(payload, defaultWebhookUrl);
+                        sendWebhook(payload, defaultWebhookUrl, "默认配置 (Properties)");
                     } else {
                         for (work.chenhan.entity.WebhookConfig config : configs) {
-                            sendWebhook(payload, config.getUrl());
+                            sendWebhook(payload, config.getUrl(), config.getName());
                         }
                     }
                 } else {
@@ -126,7 +126,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
         return payload;
     }
 
-    private void sendWebhook(ScaWebhookPayload payload, String targetUrl) {
+    private void sendWebhook(ScaWebhookPayload payload, String targetUrl, String webhookName) {
         String status = "FAILED";
         Integer statusCode = null;
         String responseBody = null;
@@ -156,7 +156,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
             if (responseBody != null && responseBody.length() > 2048) {
                 responseBody = responseBody.substring(0, 2048);
             }
-            savePushLog(payload, status, statusCode, responseBody, targetUrl);
+            savePushLog(payload, status, statusCode, responseBody, targetUrl, webhookName);
         }
     }
 
@@ -178,7 +178,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
     }
 
     private void savePushLog(ScaWebhookPayload payload, String status, Integer statusCode, String responseBody,
-            String url) {
+            String url, String webhookName) {
         try {
             work.chenhan.entity.WebhookPushLog log = new work.chenhan.entity.WebhookPushLog();
             log.setScaProjectName(payload.getScaProjectName());
@@ -194,6 +194,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
             log.setHttpStatusCode(statusCode);
             log.setResponseBody(responseBody);
             log.setWebhookUrl(url);
+            log.setWebhookName(webhookName);
 
             pushLogRepository.save(log);
         } catch (Exception e) {
