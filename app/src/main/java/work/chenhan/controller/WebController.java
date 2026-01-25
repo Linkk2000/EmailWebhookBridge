@@ -31,6 +31,11 @@ public class WebController {
         return "index";
     }
 
+    @GetMapping("/login")
+    public String login() {
+        return "login";
+    }
+
     // --- Webhook 管理 ---
 
     @GetMapping("/webhooks")

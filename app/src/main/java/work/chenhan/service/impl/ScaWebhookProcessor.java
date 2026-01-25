@@ -284,7 +284,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
                 MimeMultipart mimeMultipart;
                 if (part instanceof MimeMessage message) {
                     mimeMultipart = (MimeMultipart) message.getContent();
-                } else if (part instanceof BodyPart bodyPart) {
+                } else if (part instanceof BodyPart) {
                     // 如果已经是 BodyPart 且是多部分，通常 getContent() 返回 MimeMultipart
                     // 如果 getContent() 仍然失败，可以通过输入流手动构造
                     Object content;
