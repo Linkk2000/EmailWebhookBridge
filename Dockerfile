@@ -8,8 +8,8 @@ COPY pom.xml .
 COPY app/pom.xml app/
 COPY app/src app/src
 
-# 编译打包 (跳过测试)
-RUN mvn clean package -pl app -DskipTests
+# 编译打包 (跳过测试，只构建 app 模块)
+RUN mvn clean package -pl app -am -DskipTests
 
 # 运行阶段
 FROM eclipse-temurin:21-jre-jammy
