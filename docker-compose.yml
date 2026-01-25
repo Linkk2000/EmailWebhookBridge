@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    image: emailwebhookbridge:1.0.0
     container_name: email-webhook-bridge
     restart: always
     ports:
