@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS `sca_process_record` (
     `sca_start_time` VARCHAR(255) DEFAULT NULL,
     `sca_end_time` VARCHAR(255) DEFAULT NULL,
     `received_at` DATETIME DEFAULT NULL COMMENT '邮件接收时间',
-    `is_allowed` TINYINT(1) DEFAULT NULL COMMENT '是否通过规则过滤'
+    `is_allowed` TINYINT(1) DEFAULT NULL COMMENT '是否通过规则过滤',
+    `sca_raw_content` TEXT DEFAULT NULL COMMENT '原始邮件内容'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 3. Webhook 推送日志表
