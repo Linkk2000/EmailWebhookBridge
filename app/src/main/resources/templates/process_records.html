@@ -63,8 +63,9 @@
                     <th>SCA任务ID</th>
                     <th>分支/版本</th>
                     <th>检测时间</th>
-                    <th>结果</th>
+                    <th>放行/拦截</th>
                     <th>接收时间</th>
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -80,9 +81,13 @@
                         <span th:unless="${record.isAllowed}" class="badge bg-warning text-dark">拦截</span>
                     </td>
                     <td th:text="${#temporals.format(record.receivedAt, 'yyyy-MM-dd HH:mm:ss')}">Time</td>
+                    <td>
+                        <button type="button" class="btn btn-outline-info btn-sm"
+                            th:data-raw-content="${record.scaRawContent}" onclick="showRawContent(this)">查看原文</button>
+                    </td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(records)}">
-                    <td colspan="8" class="text-center">暂无处理记录。</td>
+                    <td colspan="9" class="text-center">暂无处理记录。</td>
                 </tr>
             </tbody>
         </table>
@@ -108,7 +113,33 @@
                 </li>
             </ul>
         </nav>
-    </div>
+        <!-- 邮件原文模态框 -->
+        <div class="modal fade" id="rawContentModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">邮件原文</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <pre id="rawContentArea"
+                            style="white-space: pre-wrap; word-break: break-all; background: #f8f9fa; padding: 15px; border-radius: 5px;"></pre>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const rawContentModal = new bootstrap.Modal(document.getElementById('rawContentModal'));
+            function showRawContent(btn) {
+                const content = btn.getAttribute('data-raw-content');
+                document.getElementById('rawContentArea').textContent = content || '（暂无原文内容）';
+                rawContentModal.show();
+            }
+        </script>
 </body>
 
 </html>

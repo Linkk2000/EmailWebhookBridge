@@ -75,30 +75,23 @@ public class ScaWebhookProcessor implements EmailProcessor {
                 boolean allowed = enrichmentService.enrich(payload);
 
                 // 2. 记录决策结果
-                saveProcessRecord(payload, allowed);
+                saveProcessRecord(payload, allowed, bodyText);
 
                 if (allowed) {
                     // 3. 发送 Webhook 并记录日志
-                    // 广播给所有已启用的 Webhook
-                    java.util.List<work.chenhan.entity.WebhookConfig> configs = webhookConfigService
-                            .getEnabledConfigs();
-
-                    if (configs.isEmpty()) {
-                        log.info("未配置任何启用的 Webhook，跳过推送。");
-                    } else {
-                        for (work.chenhan.entity.WebhookConfig config : configs) {
-                            if ("DOWN".equals(config.getLastStatus())) {
-                                log.warn("Webhook {} 状态为 DOWN，跳过本次推送。", config.getUrl());
-                                continue;
-                            }
-                            sendWebhook(payload, config.getUrl(), config.getName(), config.getId());
-                        }
-                    }
+                    broadcast(payload);
                 } else {
                     log.info("Payload 被增强服务拦截: {}", payload.getScaProjectName());
                 }
             } else {
-                log.warn("未能从邮件正文解析出 SCA 报告。");
+                log.warn("未能从邮件正文解析出标准 SCA 报告，转为非标准处理模式。");
+                ScaWebhookPayload fallbackPayload = new ScaWebhookPayload();
+                fallbackPayload
+                        .setScaProjectName("未知格式: " + (content.getSubject() != null ? content.getSubject() : "无标题"));
+
+                // 记录为“不通过”或根据策略放行，此处建议记录并标记为 allowed=false (或 true，取决于用户希望如何看到原文)
+                // 既然用户希望在记录中看到，我们记录下来
+                saveProcessRecord(fallbackPayload, false, bodyText);
             }
         } catch (Exception e) {
             log.error("处理 Webhook 邮件时出错", e);
@@ -123,6 +116,21 @@ public class ScaWebhookProcessor implements EmailProcessor {
         payload.setScaAppId(null);
 
         return payload;
+    }
+
+    private void broadcast(ScaWebhookPayload payload) {
+        java.util.List<work.chenhan.entity.WebhookConfig> configs = webhookConfigService.getEnabledConfigs();
+        if (configs.isEmpty()) {
+            log.info("未配置任何启用的 Webhook，跳过推送。");
+        } else {
+            for (work.chenhan.entity.WebhookConfig config : configs) {
+                if ("DOWN".equals(config.getLastStatus())) {
+                    log.warn("Webhook {} 状态为 DOWN，跳过本次推送。", config.getUrl());
+                    continue;
+                }
+                sendWebhook(payload, config.getUrl(), config.getName(), config.getId());
+            }
+        }
     }
 
     private void sendWebhook(ScaWebhookPayload payload, String targetUrl, String webhookName, Long webhookId) {
@@ -172,7 +180,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
         }
     }
 
-    private void saveProcessRecord(ScaWebhookPayload payload, boolean allowed) {
+    private void saveProcessRecord(ScaWebhookPayload payload, boolean allowed, String rawContent) {
         try {
             work.chenhan.entity.ScaProcessRecord record = new work.chenhan.entity.ScaProcessRecord();
             record.setScaProjectName(payload.getScaProjectName());
@@ -183,6 +191,7 @@ public class ScaWebhookProcessor implements EmailProcessor {
             record.setScaStartTime(payload.getScaStartTime());
             record.setScaEndTime(payload.getScaEndTime());
             record.setIsAllowed(allowed);
+            record.setScaRawContent(rawContent);
             processRecordRepository.save(record);
         } catch (Exception e) {
             log.error("保存处理记录失败", e);

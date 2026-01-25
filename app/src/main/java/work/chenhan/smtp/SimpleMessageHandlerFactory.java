@@ -8,10 +8,14 @@ import org.subethamail.smtp.MessageHandler;
 import org.subethamail.smtp.MessageHandlerFactory;
 import org.subethamail.smtp.RejectException;
 
-import java.io.ByteArrayOutputStream;
+import java.util.Properties;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
 import work.chenhan.service.EmailProcessor;
+import java.io.ByteArrayInputStream;
 
 @Component
 public class SimpleMessageHandlerFactory implements MessageHandlerFactory {
@@ -49,6 +53,7 @@ public class SimpleMessageHandlerFactory implements MessageHandlerFactory {
 
                 work.chenhan.dto.EmailContent content = new work.chenhan.dto.EmailContent(
                         from,
+                        extractSubject(payload),
                         new java.util.ArrayList<>(recipients),
                         payload,
                         java.time.LocalDateTime.now());
@@ -62,6 +67,17 @@ public class SimpleMessageHandlerFactory implements MessageHandlerFactory {
                 // no-op
             }
         };
+    }
+
+    private String extractSubject(byte[] payload) {
+        try {
+            Session session = Session.getDefaultInstance(new Properties());
+            MimeMessage message = new MimeMessage(session, new ByteArrayInputStream(payload));
+            return message.getSubject();
+        } catch (Exception e) {
+            log.warn("无法解析邮件主题", e);
+            return "无主题";
+        }
     }
 
     private static byte[] readAllBytes(InputStream inputStream) throws IOException {

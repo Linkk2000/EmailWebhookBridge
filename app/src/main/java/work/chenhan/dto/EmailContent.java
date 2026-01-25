@@ -5,6 +5,7 @@ import java.util.List;
 
 public class EmailContent {
     private String from;
+    private String subject;
     private List<String> recipients;
     private byte[] rawData;
     private LocalDateTime receivedAt;
@@ -12,8 +13,10 @@ public class EmailContent {
     public EmailContent() {
     }
 
-    public EmailContent(String from, List<String> recipients, byte[] rawData, LocalDateTime receivedAt) {
+    public EmailContent(String from, String subject, List<String> recipients, byte[] rawData,
+            LocalDateTime receivedAt) {
         this.from = from;
+        this.subject = subject;
         this.recipients = recipients;
         this.rawData = rawData;
         this.receivedAt = receivedAt;
@@ -25,6 +28,14 @@ public class EmailContent {
 
     public void setFrom(String from) {
         this.from = from;
+    }
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
     }
 
     public List<String> getRecipients() {

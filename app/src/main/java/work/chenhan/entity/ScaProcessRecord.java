@@ -42,6 +42,10 @@ public class ScaProcessRecord {
     @Column(name = "is_allowed")
     private Boolean isAllowed;
 
+    @Lob
+    @Column(name = "sca_raw_content", columnDefinition = "TEXT")
+    private String scaRawContent;
+
     @PrePersist
     public void prePersist() {
         if (receivedAt == null) {
@@ -128,5 +132,13 @@ public class ScaProcessRecord {
 
     public void setIsAllowed(Boolean allowed) {
         isAllowed = allowed;
+    }
+
+    public String getScaRawContent() {
+        return scaRawContent;
+    }
+
+    public void setScaRawContent(String scaRawContent) {
+        this.scaRawContent = scaRawContent;
     }
 }
