@@ -7,6 +7,8 @@ COPY pom.xml .
 # 复制子模块 app 源码和 pom.xml
 COPY app/pom.xml app/
 COPY app/src app/src
+# 复制 test 模块的 pom.xml（满足父模块声明）
+COPY test/pom.xml test/
 
 # 编译打包 (跳过测试，只构建 app 模块)
 RUN mvn clean package -pl app -am -DskipTests
