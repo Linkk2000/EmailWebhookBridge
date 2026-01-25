@@ -279,21 +279,42 @@ public class ScaWebhookProcessor implements EmailProcessor {
             }
         } else if (part.isMimeType("multipart/*")) {
             try {
-                Object content = part.getContent();
-                if (content instanceof MimeMultipart) {
-                    MimeMultipart mimeMultipart = (MimeMultipart) content;
-                    StringBuilder result = new StringBuilder();
-                    for (int i = 0; i < mimeMultipart.getCount(); i++) {
-                        BodyPart bodyPart = mimeMultipart.getBodyPart(i);
-                        result.append(getTextFromMessage(bodyPart));
+                // 重点：避免直接调用 part.getContent()，因为在有类加载冲突时它会触发 ClassCastException
+                // 我们通过 MimeMultipart 构造函数直接解析内容对象
+                MimeMultipart mimeMultipart;
+                if (part instanceof MimeMessage message) {
+                    mimeMultipart = (MimeMultipart) message.getContent();
+                } else if (part instanceof BodyPart bodyPart) {
+                    // 如果已经是 BodyPart 且是多部分，通常 getContent() 返回 MimeMultipart
+                    // 如果 getContent() 仍然失败，可以通过输入流手动构造
+                    Object content;
+                    try {
+                        content = part.getContent();
+                    } catch (Exception e) {
+                        log.warn("通过 getContent() 获取 MimeMultipart 失败，尝试通过输入流解析: {}", e.getMessage());
+                        mimeMultipart = new MimeMultipart(part.getDataHandler().getDataSource());
+                        content = mimeMultipart;
                     }
-                    return result.toString();
+
+                    if (content instanceof MimeMultipart) {
+                        mimeMultipart = (MimeMultipart) content;
+                    } else {
+                        log.warn("内容不是 MimeMultipart 类型: {}", content.getClass());
+                        return content.toString();
+                    }
                 } else {
-                    log.warn("多部分内容不是 MimeMultipart 的实例: {}", content.getClass());
-                    return content.toString();
+                    // 通用降级方案
+                    mimeMultipart = new MimeMultipart(part.getDataHandler().getDataSource());
                 }
+
+                StringBuilder result = new StringBuilder();
+                for (int i = 0; i < mimeMultipart.getCount(); i++) {
+                    BodyPart bodyPart = mimeMultipart.getBodyPart(i);
+                    result.append(getTextFromMessage(bodyPart));
+                }
+                return result.toString();
             } catch (Exception e) {
-                log.error("解析多部分内容失败", e);
+                log.error("手动解析多部分内容失败", e);
                 return "";
             }
         } else if (part.isMimeType("text/html")) {
