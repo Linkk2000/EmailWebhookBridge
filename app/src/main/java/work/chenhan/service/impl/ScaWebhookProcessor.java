@@ -35,6 +35,8 @@ public class ScaWebhookProcessor implements EmailProcessor {
     private final work.chenhan.service.WebhookConfigService webhookConfigService;
 
     // 正则表达式模式
+    // 【GitLab_V4】风险检测已完成 —— 方括号内是应用来源，反查时换算成 vcs/list 的 type 参数
+    private static final Pattern SOURCE_PATTERN = Pattern.compile("【(.+?)】[^\\n]*?检测已完成");
     private static final Pattern INFO_PATTERN = Pattern.compile("项目名称：(.*?)，应用名称：(.*?)，应用版本：(.*)");
     private static final Pattern COMPONENT_PATTERN = Pattern.compile("共检测出(\\d+)个组件");
     private static final Pattern VULN_PATTERN = Pattern.compile("共检测出(\\d+)个漏洞");
@@ -94,6 +96,8 @@ public class ScaWebhookProcessor implements EmailProcessor {
         payload.setScaLicenseCount(report.getLicenseCount());
         payload.setScaStartTime(report.getStartTime());
         payload.setScaEndTime(report.getEndTime());
+        // 来源仅供反查 type 使用，不推送给下游；taskId / appId 由 ScaEnrichmentService 补全
+        payload.setScaSource(report.getSource());
         return payload;
     }
 
@@ -176,6 +180,9 @@ public class ScaWebhookProcessor implements EmailProcessor {
             report.setApplicationVersion(infoMatcher.group(3).trim());
             found = true;
         }
+        Matcher sourceMatcher = SOURCE_PATTERN.matcher(text);
+        if (sourceMatcher.find())
+            report.setSource(sourceMatcher.group(1).trim());
         Matcher compMatcher = COMPONENT_PATTERN.matcher(text);
         if (compMatcher.find())
             report.setComponentCount(Integer.parseInt(compMatcher.group(1)));

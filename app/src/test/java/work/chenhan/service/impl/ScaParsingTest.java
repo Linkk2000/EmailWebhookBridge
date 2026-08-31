@@ -33,6 +33,7 @@ class ScaParsingTest {
         ScaReport report = processor.parseReport(emailBody);
 
         assertNotNull(report, "Report should not be null");
+        assertEquals("GitLab_V4", report.getSource(), "来源用于换算 vcs/list 的 type 参数");
         assertEquals("测试用", report.getProjectName());
         assertEquals("管理系统企业前端", report.getApplicationName());
         assertEquals("master", report.getApplicationVersion());

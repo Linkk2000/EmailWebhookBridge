@@ -1,5 +1,6 @@
 package work.chenhan.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ScaWebhookPayload {
@@ -36,6 +37,13 @@ public class ScaWebhookPayload {
 
     @JsonProperty("sca_app_id")
     private String scaAppId;
+
+    /**
+     * 邮件正文【】里的来源名，如 GitLab_V4。
+     * 仅用于反查时确定 vcs/list 的 type 参数，不推送给下游。
+     */
+    @JsonIgnore
+    private String scaSource;
 
     // Getters and Setters
 
@@ -127,6 +135,14 @@ public class ScaWebhookPayload {
         this.scaAppId = scaAppId;
     }
 
+    public String getScaSource() {
+        return scaSource;
+    }
+
+    public void setScaSource(String scaSource) {
+        this.scaSource = scaSource;
+    }
+
     @Override
     public String toString() {
         return "ScaWebhookPayload{" +
@@ -141,6 +157,7 @@ public class ScaWebhookPayload {
                 ", scaRepoAddress='" + scaRepoAddress + '\'' +
                 ", scaTaskId='" + scaTaskId + '\'' +
                 ", scaAppId='" + scaAppId + '\'' +
+                ", scaSource='" + scaSource + '\'' +
                 '}';
     }
 }

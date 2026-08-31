@@ -1,6 +1,8 @@
 package work.chenhan.dto;
 
 public class ScaReport {
+    /** 邮件正文【】里的来源名，如 GitLab_V4。 */
+    private String source;
     private String projectName;
     private String applicationName;
     private String applicationVersion;
@@ -11,6 +13,14 @@ public class ScaReport {
     private Integer licenseCount;
 
     // Getters and Setters
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
     public String getProjectName() {
         return projectName;
     }
@@ -78,7 +88,8 @@ public class ScaReport {
     @Override
     public String toString() {
         return "ScaReport{" +
-                "projectName='" + projectName + '\'' +
+                "source='" + source + '\'' +
+                ", projectName='" + projectName + '\'' +
                 ", applicationName='" + applicationName + '\'' +
                 ", applicationVersion='" + applicationVersion + '\'' +
                 ", startTime='" + startTime + '\'' +
