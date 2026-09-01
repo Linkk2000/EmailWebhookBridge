@@ -38,19 +38,28 @@ public class ScaOpenApiClient {
 
     private static final Logger log = LoggerFactory.getLogger(ScaOpenApiClient.class);
 
-    /** 邮件正文【】中的来源名 -> vcs/list 的 type 参数（ApplicationAndTaskParamSourceEnum）。 */
+    /**
+     * 邮件正文【】中的来源名 -> vcs/list 的 type 参数。
+     *
+     * 取值是 RepositoryTypeEnum（对应库表 asset_repository_manage.repository_type），
+     * 不是 ApplicationAndTaskParamSourceEnum——两套枚举同名不同值，用错了查不到任何数据。
+     * 已实测：type=2 能查到 applicationSource 为 GitLab_V4 的应用，type=8 覆盖通用 Git。
+     *
+     * 键取自 application 详情与 vcs/list 返回的 applicationSource，实测无“代码仓库管理-”前缀。
+     * 不在此表中的来源（应用包审查分析、SBOM清单扫描、二进制成分分析、容器镜像安全扫描、
+     * CI/CD 流水线等）不属于代码仓库，vcs/list 查不到，需要各自的列表接口。
+     */
     private static final Map<String, Integer> SOURCE_TYPE;
 
     static {
         Map<String, Integer> m = new LinkedHashMap<>();
-        m.put("通用Git", 4);
-        m.put("SVN", 5);
-        m.put("GitLab_CICD流水线", 14);
-        m.put("Gitee Go", 16);
-        m.put("GitLab_V3", 22);
-        m.put("GitLab_V4", 23);
-        m.put("Gitee开源版", 24);
-        m.put("Gitee企业版", 25);
+        m.put("GitLab_V3", 1);
+        m.put("GitLab_V4", 2);
+        m.put("SVN", 3);
+        m.put("通用Git", 8);
+        m.put("Gitee开源版", 9);
+        m.put("Gitee定制版", 22);
+        m.put("Gitee企业版", 23);
         SOURCE_TYPE = Map.copyOf(m);
     }
 
@@ -65,7 +74,7 @@ public class ScaOpenApiClient {
             @Value("${sca.openapi.connect-timeout-seconds:5}") int connectTimeoutSeconds,
             @Value("${sca.openapi.read-timeout-seconds:5}") int readTimeoutSeconds,
             @Value("${sca.openapi.page-size:50}") int pageSize,
-            @Value("${sca.openapi.default-type:23}") int defaultType,
+            @Value("${sca.openapi.default-type:8}") int defaultType,
             @Value("${sca.openapi.skip-ssl-verify:false}") boolean skipSslVerify,
             RestClient.Builder restClientBuilder) {
         this.baseUrl = trimTrailingSlash(baseUrl);

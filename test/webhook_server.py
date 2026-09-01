@@ -59,15 +59,25 @@ class WebhookReceiverHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(response_body)
         else:
+            # 路径不对时也要出声。否则 Bridge 那边报 404、这边一片安静，
+            # 很容易误判成"接收器没收到请求"。
+            print(f"\n[404] 收到 POST，但路径是 {self.path}，本服务只处理 /callback")
+            print(f"      请把 Bridge 的 webhook 地址改成 http://<IP>:{PORT}/callback\n")
             self.send_response(404)
             self.end_headers()
 
+    def do_GET(self):
+        print(f"[GET] {self.path} —— 本服务只接受 POST /callback")
+        self.send_response(405)
+        self.end_headers()
+
     def log_message(self, format, *args):
-        #以此覆盖默认日志方法以减少噪音，仅在需要时打印特定日志
+        # 覆盖默认访问日志以减少噪音；需要出声的地方已在上面显式 print
         pass
 
 print(f"正如火如荼地监听端口 {PORT} 中...")
 print(f"URL: http://localhost:{PORT}/callback")
+print("提示：Bridge 的 webhook 地址必须带 /callback，否则会静默 404")
 print("等待数据中...\n")
 
 with socketserver.TCPServer(("", PORT), WebhookReceiverHandler) as httpd:

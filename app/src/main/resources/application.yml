@@ -35,10 +35,11 @@ sca:
     # 置 true 可跳过证书与主机名校验，只影响本客户端，不动全局 SSL 设置。
     skip-ssl-verify: false
     page-size: 50 # vcs/list 单页上限，只取第一页
-    # 邮件【】里的来源名识别不了时使用的 type 值。
-    # 4=通用Git 5=SVN 14=GitLab_CICD流水线 16=Gitee Go
-    # 22=GitLab_V3 23=GitLab_V4 24=Gitee开源版 25=Gitee企业版
-    default-type: 23
+    # 邮件【】里的来源名识别不了时使用的 type 值（RepositoryTypeEnum，已实测）。
+    # 1=GitLab_V3  2=GitLab_V4  3=SVN  8=通用Git
+    # 9=Gitee开源版  22=Gitee定制版  23=Gitee企业版
+    # 正常情况下从邮件正文【】解析，这里只是兜底。
+    default-type: 8
 
   enrichment:
     # 补全失败时是否拦截推送。默认 false：拦截会让下游收不到扫描完成通知，
