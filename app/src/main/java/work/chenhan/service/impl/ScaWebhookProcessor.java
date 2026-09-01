@@ -145,6 +145,10 @@ public class ScaWebhookProcessor implements EmailProcessor {
             record.setScaProjectName(payload.getScaProjectName());
             record.setScaApplicationName(payload.getScaApplicationName());
             record.setScaBranch(payload.getScaBranch());
+            record.setScaTaskId(payload.getScaTaskId());
+            record.setScaAppId(payload.getScaAppId());
+            record.setScaStartTime(payload.getScaStartTime());
+            record.setScaEndTime(payload.getScaEndTime());
             record.setIsAllowed(allowed);
             record.setScaRawContent(rawContent);
             processRecordRepository.save(record);
@@ -159,6 +163,11 @@ public class ScaWebhookProcessor implements EmailProcessor {
             work.chenhan.entity.WebhookPushLog log = new work.chenhan.entity.WebhookPushLog();
             log.setScaProjectName(payload.getScaProjectName());
             log.setScaApplicationName(payload.getScaApplicationName());
+            log.setScaBranch(payload.getScaBranch());
+            log.setScaTaskId(payload.getScaTaskId());
+            log.setScaAppId(payload.getScaAppId());
+            log.setScaStartTime(payload.getScaStartTime());
+            log.setScaEndTime(payload.getScaEndTime());
             log.setStatus(status);
             log.setHttpStatusCode(statusCode);
             log.setResponseBody(responseBody);
